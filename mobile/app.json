@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Sankat Mochan Sevarth Sanstha",
+    "slug": "sankat-mochan-sevarth",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "light",
+    "scheme": "sankatmochan",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050505"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sankatmochan.sevarth"
+    },
+    "android": {
+      "package": "com.sankatmochan.sevarth",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#050505"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Sankat Mochan to select images for posts and application receipts.",
+          "cameraPermission": "Allow Sankat Mochan to take photos for posts and application receipts."
+        }
+      ],
+      "expo-notifications"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

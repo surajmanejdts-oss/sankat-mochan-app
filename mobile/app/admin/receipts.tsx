@@ -23,6 +23,8 @@ type Member = {
   status: "pending" | "verified";
 };
 
+const PAYMENT_MODES = ["Cash", "Cheque", "UPI", "Bank Transfer"];
+
 export default function AdminReceipts() {
   const { token } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
@@ -31,12 +33,15 @@ export default function AdminReceipts() {
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const [title, setTitle] = useState("");
+  const [donorName, setDonorName] = useState("");
+  const [fatherOrHusbandName, setFatherOrHusbandName] = useState("");
+  const [address, setAddress] = useState("");
+  const [mobile, setMobile] = useState("");
   const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("General");
-  const [paymentMethod, setPaymentMethod] = useState("");
-  const [transactionReference, setTransactionReference] = useState("");
+  const [amountInWords, setAmountInWords] = useState("");
+  const [purpose, setPurpose] = useState("Donation to Sankat Mochan Seva Karya");
+  const [paymentMode, setPaymentMode] = useState("Cash");
+  const [paymentReference, setPaymentReference] = useState("");
   const [receiptDate, setReceiptDate] = useState("");
 
   const loadMembers = useCallback(async () => {
@@ -112,8 +117,13 @@ export default function AdminReceipts() {
       return;
     }
 
-    if (!title.trim()) {
-      Alert.alert("Receipt title", "Enter a title for the receipt.");
+    if (!donorName.trim()) {
+      Alert.alert("Donor name", "Enter the donor name for the receipt.");
+      return;
+    }
+
+    if (!purpose.trim()) {
+      Alert.alert("Donation purpose", "Enter the purpose of this donation.");
       return;
     }
 
@@ -132,12 +142,15 @@ export default function AdminReceipts() {
           method: "POST",
           body: JSON.stringify({
             userIds: selected,
-            title: title.trim(),
+            donorName: donorName.trim(),
+            fatherOrHusbandName: fatherOrHusbandName.trim(),
+            address: address.trim(),
+            mobile: mobile.trim(),
             amount: numericAmount,
-            description: description.trim(),
-            category: category.trim() || "General",
-            paymentMethod: paymentMethod.trim(),
-            transactionReference: transactionReference.trim(),
+            amountInWords: amountInWords.trim(),
+            purpose: purpose.trim(),
+            paymentMethod: paymentMode,
+            transactionReference: paymentReference.trim(),
             receiptDate: receiptDate.trim()
           })
         },
@@ -146,12 +159,15 @@ export default function AdminReceipts() {
 
       Alert.alert("Receipt sent", data.message);
       setSelected([]);
-      setTitle("");
+      setDonorName("");
+      setFatherOrHusbandName("");
+      setAddress("");
+      setMobile("");
       setAmount("");
-      setDescription("");
-      setCategory("General");
-      setPaymentMethod("");
-      setTransactionReference("");
+      setAmountInWords("");
+      setPurpose("Donation to Sankat Mochan Seva Karya");
+      setPaymentMode("Cash");
+      setPaymentReference("");
       setReceiptDate("");
     } catch (e: any) {
       Alert.alert("Send receipt failed", e?.message || "Unable to send receipt.");
@@ -175,17 +191,40 @@ export default function AdminReceipts() {
       </Text>
 
       <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>Receipt Information</Text>
+        <Text style={styles.sectionTitle}>Donation Receipt Details</Text>
 
         <Field
-          label="Receipt Title *"
-          placeholder="Example: Donation Receipt"
-          value={title}
-          onChangeText={setTitle}
+          label="Donor Name *"
+          placeholder="Full name of the donor"
+          value={donorName}
+          onChangeText={setDonorName}
         />
 
         <Field
-          label="Amount (₹) *"
+          label="Father / Husband Name"
+          placeholder="Optional"
+          value={fatherOrHusbandName}
+          onChangeText={setFatherOrHusbandName}
+        />
+
+        <Field
+          label="Address"
+          placeholder="Donor address"
+          multiline
+          value={address}
+          onChangeText={setAddress}
+        />
+
+        <Field
+          label="Mobile Number"
+          placeholder="Donor mobile number"
+          keyboardType="phone-pad"
+          value={mobile}
+          onChangeText={setMobile}
+        />
+
+        <Field
+          label="Amount (INR) *"
           placeholder="Example: 500"
           keyboardType="decimal-pad"
           value={amount}
@@ -193,32 +232,49 @@ export default function AdminReceipts() {
         />
 
         <Field
-          label="Description"
-          placeholder="Describe what this receipt is for..."
-          multiline
-          value={description}
-          onChangeText={setDescription}
+          label="Amount in Words"
+          placeholder="Example: Five hundred rupees only"
+          value={amountInWords}
+          onChangeText={setAmountInWords}
         />
 
         <Field
-          label="Category"
-          placeholder="Donation / Membership / Event / General"
-          value={category}
-          onChangeText={setCategory}
+          label="Donation Purpose *"
+          placeholder="Purpose of donation"
+          value={purpose}
+          onChangeText={setPurpose}
         />
 
-        <Field
-          label="Payment Method"
-          placeholder="UPI / Bank Transfer / Cash / Other"
-          value={paymentMethod}
-          onChangeText={setPaymentMethod}
-        />
+        <Text style={styles.fieldLabel}>Payment Mode</Text>
+        <View style={styles.paymentModes}>
+          {PAYMENT_MODES.map((mode) => (
+            <Pressable
+              key={mode}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: paymentMode === mode }}
+              onPress={() => setPaymentMode(mode)}
+              style={[
+                styles.paymentMode,
+                paymentMode === mode && styles.paymentModeSelected
+              ]}
+            >
+              <Text
+                style={[
+                  styles.paymentModeText,
+                  paymentMode === mode && styles.paymentModeTextSelected
+                ]}
+              >
+                {mode}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         <Field
-          label="Transaction / Reference Number"
-          placeholder="Optional reference number"
-          value={transactionReference}
-          onChangeText={setTransactionReference}
+          label="Cheque / Transaction Number"
+          placeholder="Optional"
+          value={paymentReference}
+          onChangeText={setPaymentReference}
         />
 
         <Field
@@ -312,8 +368,11 @@ export default function AdminReceipts() {
       <View style={styles.summary}>
         <Text style={styles.summaryTitle}>Ready to send</Text>
         <Text style={styles.summaryText}>
-          {selected.length} member{selected.length === 1 ? "" : "s"} selected
+          {selected.length} receiver{selected.length === 1 ? "" : "s"} selected
           {amount ? ` • ₹${Number(amount || 0).toLocaleString("en-IN")} each` : ""}
+        </Text>
+        <Text style={styles.summaryNote}>
+          Each selected member&apos;s name will appear as the receiver on their receipt.
         </Text>
       </View>
 
@@ -372,6 +431,32 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#173C5A"
   },
+  fieldLabel: {
+    color: "#173C5A",
+    fontWeight: "700",
+    marginBottom: 8
+  },
+  paymentModes: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14
+  },
+  paymentMode: {
+    minHeight: 40,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#A9C0D0",
+    backgroundColor: "#F9FCFD",
+    paddingHorizontal: 12,
+    borderRadius: 8
+  },
+  paymentModeSelected: {
+    borderColor: "#0D568B",
+    backgroundColor: "#E7F2F8"
+  },
+  paymentModeText: { color: "#354B5A", fontWeight: "700" },
+  paymentModeTextSelected: { color: "#0D568B" },
   selectionText: {
     color: "#777",
     marginTop: 2,
@@ -482,5 +567,10 @@ const styles = StyleSheet.create({
   summaryText: {
     color: "#6A5A35",
     marginTop: 3
+  },
+  summaryNote: {
+    color: "#6A5A35",
+    fontSize: 12,
+    marginTop: 7
   }
 });

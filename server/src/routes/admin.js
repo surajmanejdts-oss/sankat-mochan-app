@@ -149,10 +149,13 @@ router.post("/receipts", async (req, res) => {
   try {
     const {
       userIds,
-      title,
+      donorName,
+      fatherOrHusbandName,
+      address,
+      mobile,
       amount,
-      description,
-      category,
+      amountInWords,
+      purpose,
       paymentMethod,
       transactionReference,
       receiptDate
@@ -162,8 +165,12 @@ router.post("/receipts", async (req, res) => {
       return res.status(400).json({ message: "Select at least one member." });
     }
 
-    if (!title || !String(title).trim()) {
-      return res.status(400).json({ message: "Receipt title is required." });
+    if (!donorName || !String(donorName).trim()) {
+      return res.status(400).json({ message: "Donor name is required." });
+    }
+
+    if (!purpose || !String(purpose).trim()) {
+      return res.status(400).json({ message: "Donation purpose is required." });
     }
 
     const numericAmount = Number(amount);
@@ -191,18 +198,24 @@ router.post("/receipts", async (req, res) => {
         receiptNumber: makeReceiptNumber(),
         user: user._id,
         type: "manual",
-        title: String(title).trim(),
-        description: String(description || "").trim(),
+        title: "Donation Receipt",
+        description: String(purpose).trim(),
         amount: numericAmount,
         currency: "INR",
-        category: String(category || "General").trim(),
+        category: "Donation",
         paymentMethod: String(paymentMethod || "").trim(),
         transactionReference: String(transactionReference || "").trim(),
         receiptDate: requestedDate,
         issuedBy: req.auth.username || "Admin",
         metadata: {
           distribution: "admin",
-          recipientName: user.name
+          recipientName: user.name,
+          donorName: String(donorName).trim(),
+          fatherOrHusbandName: String(fatherOrHusbandName || "").trim(),
+          address: String(address || "").trim(),
+          mobile: String(mobile || "").trim(),
+          amountInWords: String(amountInWords || "").trim(),
+          purpose: String(purpose).trim()
         }
       });
 
@@ -212,7 +225,7 @@ router.post("/receipts", async (req, res) => {
         userId: user._id,
         type: "receipt_sent",
         title: "New receipt received",
-        body: `${receipt.title} for ₹${numericAmount.toLocaleString("en-IN")} has been added to your Receipts section.`,
+        body: `A donation receipt for ₹${numericAmount.toLocaleString("en-IN")} has been added to your Receipts section.`,
         data: {
           receiptId: receipt._id.toString(),
           receiptNumber: receipt.receiptNumber

@@ -1,6 +1,6 @@
 import { useRouter, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { apiFetch } from "@/lib/api";
@@ -49,14 +49,6 @@ export default function MemberHome() {
         </View>
         <View style={styles.headerActions}>
           <NotificationBell />
-          {verified && (
-            <Pressable
-              style={styles.receiptButton}
-              onPress={() => router.push("/member/receipts")}
-            >
-              <Text style={styles.receiptIcon}>🧾</Text>
-            </Pressable>
-          )}
           <Text style={[styles.status, verified ? styles.verified : styles.pending]}>
             {verified ? "VERIFIED" : "PENDING"}
           </Text>
@@ -76,7 +68,7 @@ export default function MemberHome() {
           </Text>
           <Text style={styles.body}>
             {verified
-              ? "Your membership application has been verified. Your membership receipt is available from the receipt icon above."
+              ? "Your membership application has been verified. Your receipts are available in the Receipts section below."
               : "Your application is under review. Please wait up to 24 hours while the administrator verifies your information."}
           </Text>
           <Text style={styles.small}>
@@ -84,6 +76,18 @@ export default function MemberHome() {
           </Text>
         </View>
       )}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>My Receipts</Text>
+        <Text style={styles.body}>
+          View membership receipts and any additional receipts issued to you.
+        </Text>
+        <PrimaryButton
+          title="Open Receipts"
+          secondary
+          onPress={() => router.push("/member/receipts")}
+        />
+      </View>
 
       {verified ? (
         <>
@@ -110,16 +114,6 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1, backgroundColor: "#FFF9EA", padding: 18 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  receiptButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 2
-  },
-  receiptIcon: { fontSize: 24 },
   greeting: { fontSize: 24, fontWeight: "900", color: "#173C5A" },
   username: { color: "#6B6B6B", marginTop: 2 },
   status: { fontWeight: "900", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, overflow: "hidden" },

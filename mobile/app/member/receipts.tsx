@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -27,6 +28,7 @@ type Receipt = {
   receiptDate: string;
   issuedBy?: string;
   createdAt: string;
+  metadata?: { recipientName?: string };
 };
 
 function money(amount: number) {
@@ -96,13 +98,24 @@ export default function MemberReceipts() {
         </View>
       ) : (
         receipts.map((receipt) => (
-          <View style={styles.card} key={receipt._id}>
+          <Pressable
+            style={styles.card}
+            key={receipt._id}
+            onPress={() => router.push(`/member/receipts/${receipt._id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`View receipt ${receipt.receiptNumber}`}
+          >
             <View style={styles.topRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.receiptTitle}>{receipt.title}</Text>
                 <Text style={styles.receiptNumber}>
                   {receipt.receiptNumber}
                 </Text>
+                {receipt.metadata?.recipientName ? (
+                  <Text style={styles.receiptNumber}>
+                    Receiver: {receipt.metadata.recipientName}
+                  </Text>
+                ) : null}
               </View>
               <Text style={styles.amount}>{money(receipt.amount)}</Text>
             </View>
@@ -138,7 +151,8 @@ export default function MemberReceipts() {
                 <Detail label="Issued by" value={receipt.issuedBy} />
               ) : null}
             </View>
-          </View>
+            <Text style={styles.viewDetails}>View full receipt details</Text>
+          </Pressable>
         ))
       )}
 
@@ -236,6 +250,12 @@ const styles = StyleSheet.create({
     color: "#4E4E4E",
     lineHeight: 20,
     marginTop: 11
+  },
+  viewDetails: {
+    color: "#0D568B",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 6
   },
   details: {
     marginTop: 10,

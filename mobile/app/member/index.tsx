@@ -1,10 +1,6 @@
 import { useRouter, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-<<<<<<< HEAD
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-=======
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
->>>>>>> caae93ef0c476314d07c125b77e624082713f232
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { apiFetch } from "@/lib/api";
@@ -53,7 +49,6 @@ export default function MemberHome() {
         </View>
         <View style={styles.headerActions}>
           <NotificationBell />
-<<<<<<< HEAD
           {verified && (
             <Pressable
               style={styles.receiptButton}
@@ -62,8 +57,6 @@ export default function MemberHome() {
               <Text style={styles.receiptIcon}>🧾</Text>
             </Pressable>
           )}
-=======
->>>>>>> caae93ef0c476314d07c125b77e624082713f232
           <Text style={[styles.status, verified ? styles.verified : styles.pending]}>
             {verified ? "VERIFIED" : "PENDING"}
           </Text>
@@ -78,7 +71,6 @@ export default function MemberHome() {
         </View>
       ) : (
         <View style={styles.card}>
-<<<<<<< HEAD
           <Text style={styles.cardTitle}>
             {verified ? "Application verified ✓" : "Application submitted"}
           </Text>
@@ -90,13 +82,6 @@ export default function MemberHome() {
           <Text style={styles.small}>
             Submitted: {new Date(application.submittedAt).toLocaleString()}
           </Text>
-=======
-          <Text style={styles.cardTitle}>Application submitted</Text>
-          <Text style={styles.body}>
-            Your application is under review. Please wait up to 24 hours while the administrator verifies your information.
-          </Text>
-          <Text style={styles.small}>Submitted: {new Date(application.submittedAt).toLocaleString()}</Text>
->>>>>>> caae93ef0c476314d07c125b77e624082713f232
         </View>
       )}
 
@@ -125,7 +110,6 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1, backgroundColor: "#FFF9EA", padding: 18 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-<<<<<<< HEAD
   receiptButton: {
     width: 48,
     height: 48,
@@ -136,8 +120,6 @@ const styles = StyleSheet.create({
     elevation: 2
   },
   receiptIcon: { fontSize: 24 },
-=======
->>>>>>> caae93ef0c476314d07c125b77e624082713f232
   greeting: { fontSize: 24, fontWeight: "900", color: "#173C5A" },
   username: { color: "#6B6B6B", marginTop: 2 },
   status: { fontWeight: "900", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, overflow: "hidden" },

@@ -66,12 +66,8 @@ export default function AdminDashboard() {
       </View>
 
       <PrimaryButton title="👥 Open Members" secondary onPress={() => router.push("/admin/members")} />
-<<<<<<< HEAD
       <PrimaryButton title="🧾 Send Receipt" onPress={() => router.push("/admin/receipts")} />
       <PrimaryButton title="📝 View All Posts" secondary onPress={() => router.push("/admin/posts")} />
-=======
-      <PrimaryButton title="📝 Review Posts" onPress={() => router.push("/admin/posts")} />
->>>>>>> caae93ef0c476314d07c125b77e624082713f232
       <PrimaryButton title="🔔 All Notifications" secondary onPress={() => router.push("/notifications")} />
       <PrimaryButton title="Logout" danger onPress={logout} />
     </ScrollView>

@@ -49,21 +49,104 @@ router.get("/members/:id", async (req, res) => {
   res.json({ member: user, application, posts });
 });
 
+router.patch("/members/:id", async (req, res) => {
+  const member = await User.findOne({ _id: req.params.id, role: "member" });
+  if (!member) return res.status(404).json({ message: "Member not found." });
+
+  const name = String(req.body.name || "").trim();
+  const username = String(req.body.username || "").trim().toLowerCase();
+  if (!name || !username) {
+    return res.status(400).json({ message: "Member name and username are required." });
+  }
+
+  const duplicateUsername = await User.findOne({
+    username,
+    _id: { $ne: member._id }
+  }).select("_id").lean();
+  if (duplicateUsername) {
+    return res.status(409).json({ message: "That username is already in use." });
+  }
+
+  const application = await Application.findOne({ user: member._id });
+  const applicationUpdates = req.body.application;
+  if (applicationUpdates && !application) {
+    return res.status(409).json({
+      message: "An application must be submitted before its details can be edited."
+    });
+  }
+
+  if (applicationUpdates) {
+    for (const field of ["fullName", "mobile", "address"]) {
+      if (!String(applicationUpdates[field] || "").trim()) {
+        return res.status(400).json({ message: `${field} is required.` });
+      }
+    }
+
+    for (const field of [
+      "fullName", "fatherOrHusbandName", "dob", "mobile", "whatsapp",
+      "email", "address", "city", "district", "state", "pincode",
+      "occupation", "paymentDate", "paymentMethod", "transactionReference"
+    ]) {
+      if (Object.prototype.hasOwnProperty.call(applicationUpdates, field)) {
+        application[field] = String(applicationUpdates[field] || "").trim();
+      }
+    }
+
+    for (const field of ["membershipFee", "cooperationAmount"]) {
+      if (Object.prototype.hasOwnProperty.call(applicationUpdates, field)) {
+        const value = Number(applicationUpdates[field]);
+        if (!Number.isFinite(value) || value < 0) {
+          return res.status(400).json({ message: `${field} must be a valid non-negative amount.` });
+        }
+        application[field] = value;
+      }
+    }
+
+    if (Array.isArray(applicationUpdates.familyMembers)) {
+      application.familyMembers = applicationUpdates.familyMembers.map((familyMember) => ({
+        name: String(familyMember.name || "").trim(),
+        relation: String(familyMember.relation || "").trim(),
+        mobile: String(familyMember.mobile || "").trim(),
+        email: String(familyMember.email || "").trim()
+      }));
+    }
+  }
+
+  member.name = name;
+  member.username = username;
+  try {
+    await member.save();
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "That username is already in use." });
+    }
+    throw error;
+  }
+
+  if (applicationUpdates) await application.save();
+
+  const safeMember = member.toObject();
+  delete safeMember.passwordHash;
+  res.json({ message: "Member details updated.", member: safeMember, application });
+});
+
 router.patch("/members/:id/verify", async (req, res) => {
-  const user = await User.findOneAndUpdate(
-    { _id: req.params.id, role: "member" },
-    { status: "verified" },
-    { new: true }
-  ).select("-passwordHash").lean();
+  const user = await User.findOne({ _id: req.params.id, role: "member" });
 
   if (!user) return res.status(404).json({ message: "Member not found." });
 
   const application = await Application.findOne({ user: user._id }).lean();
-  let applicationReceipt = null;
-
-  if (application) {
-    applicationReceipt = await ensureApplicationReceipt(user._id, application);
+  if (!application) {
+    return res.status(409).json({
+      message: "The member must submit an application before verification."
+    });
   }
+
+  user.status = "verified";
+  await user.save();
+  const verifiedUser = user.toObject();
+  delete verifiedUser.passwordHash;
+  const applicationReceipt = await ensureApplicationReceipt(user._id, application);
 
   await notifyMember({
     userId: user._id,
@@ -80,7 +163,7 @@ router.patch("/members/:id/verify", async (req, res) => {
 
   res.json({
     message: "Member verified.",
-    member: user,
+    member: verifiedUser,
     receipt: applicationReceipt
   });
 });
@@ -101,7 +184,7 @@ router.delete("/members/:id", async (req, res) => {
 // the member's submitted application because User intentionally stores no phone field.
 router.get("/receipt-recipients", async (req, res) => {
   const q = String(req.query.q || "").trim();
-  const users = await User.find({ role: "member" })
+  const users = await User.find({ role: "member", status: "verified" })
     .sort({ name: 1 })
     .select("_id name username status createdAt")
     .lean();
@@ -149,28 +232,27 @@ router.post("/receipts", async (req, res) => {
   try {
     const {
       userIds,
-      donorName,
-      fatherOrHusbandName,
-      address,
-      mobile,
+      title,
+      description,
       amount,
-      amountInWords,
-      purpose,
-      paymentMethod,
-      transactionReference,
-      receiptDate
     } = req.body;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: "Select at least one member." });
     }
 
-    if (!donorName || !String(donorName).trim()) {
-      return res.status(400).json({ message: "Donor name is required." });
+    const receiptTitle = String(title || "").trim();
+    if (!receiptTitle) {
+      return res.status(400).json({ message: "Receipt title is required." });
     }
 
-    if (!purpose || !String(purpose).trim()) {
-      return res.status(400).json({ message: "Donation purpose is required." });
+    const receiptDescription = String(description || "").trim();
+    if (!receiptDescription) {
+      return res.status(400).json({ message: "Receipt description is required." });
+    }
+
+    if (receiptTitle.length > 160 || receiptDescription.length > 2000) {
+      return res.status(400).json({ message: "Receipt title or description is too long." });
     }
 
     const numericAmount = Number(amount);
@@ -181,16 +263,16 @@ router.post("/receipts", async (req, res) => {
     const uniqueIds = [...new Set(userIds.map(String))];
     const users = await User.find({
       _id: { $in: uniqueIds },
-      role: "member"
+      role: "member",
+      status: "verified"
     })
       .select("_id name username")
       .lean();
 
-    if (!users.length) {
-      return res.status(404).json({ message: "No valid members were selected." });
+    if (users.length !== uniqueIds.length) {
+      return res.status(400).json({ message: "Receipts can only be sent to verified members." });
     }
 
-    const requestedDate = parseReceiptDate(receiptDate);
     const receipts = [];
 
     for (const user of users) {
@@ -198,24 +280,14 @@ router.post("/receipts", async (req, res) => {
         receiptNumber: makeReceiptNumber(),
         user: user._id,
         type: "manual",
-        title: "Donation Receipt",
-        description: String(purpose).trim(),
+        title: receiptTitle,
+        description: receiptDescription,
         amount: numericAmount,
         currency: "INR",
-        category: "Donation",
-        paymentMethod: String(paymentMethod || "").trim(),
-        transactionReference: String(transactionReference || "").trim(),
-        receiptDate: requestedDate,
         issuedBy: req.auth.username || "Admin",
         metadata: {
           distribution: "admin",
-          recipientName: user.name,
-          donorName: String(donorName).trim(),
-          fatherOrHusbandName: String(fatherOrHusbandName || "").trim(),
-          address: String(address || "").trim(),
-          mobile: String(mobile || "").trim(),
-          amountInWords: String(amountInWords || "").trim(),
-          purpose: String(purpose).trim()
+          recipientName: user.name
         }
       });
 
@@ -225,7 +297,7 @@ router.post("/receipts", async (req, res) => {
         userId: user._id,
         type: "receipt_sent",
         title: "New receipt received",
-        body: `A donation receipt for ₹${numericAmount.toLocaleString("en-IN")} has been added to your Receipts section.`,
+        body: `${receiptTitle} for ₹${numericAmount.toLocaleString("en-IN")} has been added to your Receipts section.`,
         data: {
           receiptId: receipt._id.toString(),
           receiptNumber: receipt.receiptNumber

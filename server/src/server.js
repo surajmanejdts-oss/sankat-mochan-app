@@ -10,7 +10,10 @@ const applicationRoutes = require("./routes/applications");
 const postRoutes = require("./routes/posts");
 const adminRoutes = require("./routes/admin");
 const notificationRoutes = require("./routes/notifications");
+<<<<<<< HEAD
 const receiptRoutes = require("./routes/receipts");
+=======
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,7 +33,10 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
+<<<<<<< HEAD
 app.use("/api/receipts", receiptRoutes.router);
+=======
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232
 
 app.use((err, _req, res, _next) => {
   console.error(err);

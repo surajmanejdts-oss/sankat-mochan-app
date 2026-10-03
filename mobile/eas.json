@@ -5,6 +5,7 @@
       "distribution": "internal"
     },
     "preview": {
+<<<<<<< HEAD
       "distribution": "internal",
       "android": {
         "buildType": "apk"
@@ -13,3 +14,10 @@
     "production": {}
   }
 }
+=======
+      "distribution": "internal"
+    },
+    "production": {}
+  }
+}
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232

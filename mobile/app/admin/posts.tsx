@@ -156,11 +156,19 @@ export default function AdminPosts() {
         />
       }
     >
+<<<<<<< HEAD
       <Text style={styles.title}>All Community Posts</Text>
 
       <Text style={styles.subtitle}>
         All submitted member posts are shown here. Review pending posts,
         and manage approved or rejected posts.
+=======
+      <Text style={styles.title}>Post Approval</Text>
+
+      <Text style={styles.subtitle}>
+        Every member post is reviewed here before it reaches
+        the community feed.
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232
       </Text>
 
       {posts.map((post) => {

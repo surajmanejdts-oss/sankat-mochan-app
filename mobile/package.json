@@ -12,6 +12,7 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "expo": "~57.0.0",
+<<<<<<< HEAD
     "expo-constants": "~57.0.20",
     "expo-device": "~57.0.2",
     "expo-image-picker": "~57.0.20",
@@ -22,6 +23,16 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.0",
     "react-native-web": "0.21.2"
+=======
+    "expo-image-picker": "~57.0.20",
+    "expo-router": "~57.0.21",
+    "expo-secure-store": "~57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.0",
+    "expo-constants": "~57.0.20",
+    "expo-notifications": "~57.0.21",
+    "expo-device": "~57.0.2"
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232
   },
   "devDependencies": {
     "@types/react": "~19.2.0",

@@ -21,10 +21,14 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#050505"
+<<<<<<< HEAD
       },
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]
+=======
+      }
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232
     },
     "plugins": [
       "expo-router",
@@ -35,15 +39,22 @@
           "cameraPermission": "Allow Sankat Mochan to take photos for posts and application receipts."
         }
       ],
+<<<<<<< HEAD
       "expo-notifications",
       "expo-secure-store"
+=======
+      "expo-notifications"
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232
     ],
     "extra": {
       "router": {
         "origin": false
+<<<<<<< HEAD
       },
       "eas": {
         "projectId": "f4f6ab61-11c9-4442-8aa7-5e5203bb0b4f"
+=======
+>>>>>>> caae93ef0c476314d07c125b77e624082713f232
       }
     }
   }

@@ -1,7 +1,8 @@
 import { useRouter, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Alert, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { DataRequestStatus } from "@/components/DataRequestStatus";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -18,13 +19,26 @@ export default function Feed() {
   const { token } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
+    const initialLoad = !hasLoadedRef.current;
+    if (initialLoad) setLoading(true);
+    setLoadError(null);
     try {
       const data = await apiFetch<{ posts: Post[] }>("/posts", {}, token || undefined);
       setPosts(data.posts);
+      hasLoadedRef.current = true;
+      setHasLoaded(true);
     } catch (e: any) {
-      Alert.alert("Unable to load posts", e.message);
+      const message = e?.message || "Unable to load posts.";
+      setLoadError(message);
+      Alert.alert("Unable to load posts", message);
+    } finally {
+      if (initialLoad) setLoading(false);
     }
   }, [token]);
 
@@ -32,8 +46,11 @@ export default function Feed() {
 
   async function refresh() {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   return (
@@ -46,9 +63,13 @@ export default function Feed() {
         <PrimaryButton title="+ Post" onPress={() => router.push("/member/post")} />
       </View>
 
-      {posts.length === 0 && <Text style={styles.empty}>No posts yet. Be the first verified member to post.</Text>}
+      {!hasLoaded ? (
+        <DataRequestStatus loading={loading} error={loadError} onRetry={load} message="Loading community posts..." />
+      ) : posts.length === 0 ? (
+        <Text style={styles.empty}>No community post information was found.</Text>
+      ) : null}
 
-      {posts.map((post) => (
+      {hasLoaded && posts.map((post) => (
         <View style={styles.post} key={post._id}>
           <Text style={styles.author}>{post.author?.name || "Member"} <Text style={styles.handle}>@{post.author?.username}</Text></Text>
           <Text style={styles.date}>{new Date(post.createdAt).toLocaleString()}</Text>

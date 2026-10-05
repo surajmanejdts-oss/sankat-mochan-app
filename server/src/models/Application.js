@@ -32,6 +32,8 @@ const applicationSchema = new mongoose.Schema(
     paymentMethod: { type: String, trim: true },
     transactionReference: { type: String, trim: true },
     receiptImageUrl: { type: String, trim: true },
+    declarationChecks: { type: [Boolean], default: [] },
+    signatureData: { type: String, trim: true },
     declarationAccepted: { type: Boolean, required: true },
     submittedAt: { type: Date, default: Date.now }
   },

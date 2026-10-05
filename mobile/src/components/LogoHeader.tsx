@@ -1,15 +1,27 @@
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
-export function LogoHeader({ compact = false }: { compact?: boolean }) {
+export function LogoHeader({
+  compact = false,
+  showTagline = true,
+  showOrganizationName = true
+}: {
+  compact?: boolean;
+  showTagline?: boolean;
+  showOrganizationName?: boolean;
+}) {
   return (
     <View style={[styles.wrap, compact && styles.compact]}>
       <Image source={require("../../assets/logo.png")} style={compact ? styles.logoSmall : styles.logo} />
       {!compact && (
         <>
-          <Text style={styles.title}>Shri Sankat Mochan</Text>
-          <Text style={styles.subtitle}>Sevarth Sanstha</Text>
-          <Text style={styles.tagline}>Humanity • Cooperation • Service</Text>
+          {showOrganizationName && (
+            <>
+              <Text style={styles.title}>Shri Sankat Mochan</Text>
+              <Text style={styles.subtitle}>Sevarth Sanstha</Text>
+            </>
+          )}
+          {showTagline && <Text style={styles.tagline}>Humanity • Cooperation • Service</Text>}
         </>
       )}
     </View>

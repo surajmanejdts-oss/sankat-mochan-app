@@ -1,5 +1,5 @@
-import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -10,8 +10,10 @@ import {
   TextInput,
   View
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Field } from "@/components/Field";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { DataRequestStatus } from "@/components/DataRequestStatus";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -23,37 +25,43 @@ type Member = {
   status: "pending" | "verified";
 };
 
-const PAYMENT_MODES = ["Cash", "Cheque", "UPI", "Bank Transfer"];
-
 export default function AdminReceipts() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [membersLoaded, setMembersLoaded] = useState(false);
+  const membersLoadedRef = useRef(false);
 
-  const [donorName, setDonorName] = useState("");
-  const [fatherOrHusbandName, setFatherOrHusbandName] = useState("");
-  const [address, setAddress] = useState("");
-  const [mobile, setMobile] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [amountInWords, setAmountInWords] = useState("");
-  const [purpose, setPurpose] = useState("Donation to Sankat Mochan Seva Karya");
-  const [paymentMode, setPaymentMode] = useState("Cash");
-  const [paymentReference, setPaymentReference] = useState("");
-  const [receiptDate, setReceiptDate] = useState("");
 
   const loadMembers = useCallback(async () => {
+    const initialLoad = !membersLoadedRef.current;
+    if (initialLoad) setLoadingMembers(true);
+    setMembersError(null);
     try {
       const data = await apiFetch<{ members: Member[] }>(
         "/admin/receipt-recipients",
         {},
         token || undefined
       );
-      setMembers(data.members || []);
+      setMembers((data.members || []).filter((member) => member.status === "verified"));
+      membersLoadedRef.current = true;
+      setMembersLoaded(true);
     } catch (e: any) {
-      Alert.alert("Members", e?.message || "Unable to load members.");
+      const message = e?.message || "Unable to load members.";
+      setMembersError(message);
+      Alert.alert("Members", message);
+    } finally {
+      if (initialLoad) setLoadingMembers(false);
     }
   }, [token]);
 
@@ -117,13 +125,13 @@ export default function AdminReceipts() {
       return;
     }
 
-    if (!donorName.trim()) {
-      Alert.alert("Donor name", "Enter the donor name for the receipt.");
+    if (!title.trim()) {
+      Alert.alert("Receipt title", "Enter a title for the receipt.");
       return;
     }
 
-    if (!purpose.trim()) {
-      Alert.alert("Donation purpose", "Enter the purpose of this donation.");
+    if (!description.trim()) {
+      Alert.alert("Receipt description", "Enter a description for the receipt.");
       return;
     }
 
@@ -142,16 +150,9 @@ export default function AdminReceipts() {
           method: "POST",
           body: JSON.stringify({
             userIds: selected,
-            donorName: donorName.trim(),
-            fatherOrHusbandName: fatherOrHusbandName.trim(),
-            address: address.trim(),
-            mobile: mobile.trim(),
+            title: title.trim(),
+            description: description.trim(),
             amount: numericAmount,
-            amountInWords: amountInWords.trim(),
-            purpose: purpose.trim(),
-            paymentMethod: paymentMode,
-            transactionReference: paymentReference.trim(),
-            receiptDate: receiptDate.trim()
           })
         },
         token || undefined
@@ -159,16 +160,9 @@ export default function AdminReceipts() {
 
       Alert.alert("Receipt sent", data.message);
       setSelected([]);
-      setDonorName("");
-      setFatherOrHusbandName("");
-      setAddress("");
-      setMobile("");
+      setTitle("");
+      setDescription("");
       setAmount("");
-      setAmountInWords("");
-      setPurpose("Donation to Sankat Mochan Seva Karya");
-      setPaymentMode("Cash");
-      setPaymentReference("");
-      setReceiptDate("");
     } catch (e: any) {
       Alert.alert("Send receipt failed", e?.message || "Unable to send receipt.");
     } finally {
@@ -177,13 +171,15 @@ export default function AdminReceipts() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.page}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={refresh} />
-      }
-    >
+    <View style={styles.screen}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+        }
+      >
       <Text style={styles.title}>Send Receipt</Text>
       <Text style={styles.subtitle}>
         Create one receipt and send an individual copy to one or many members.
@@ -191,36 +187,21 @@ export default function AdminReceipts() {
       </Text>
 
       <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>Donation Receipt Details</Text>
+        <Text style={styles.sectionTitle}>Receipt Details</Text>
 
         <Field
-          label="Donor Name *"
-          placeholder="Full name of the donor"
-          value={donorName}
-          onChangeText={setDonorName}
+          label="Title *"
+          placeholder="Receipt title"
+          value={title}
+          onChangeText={setTitle}
         />
 
         <Field
-          label="Father / Husband Name"
-          placeholder="Optional"
-          value={fatherOrHusbandName}
-          onChangeText={setFatherOrHusbandName}
-        />
-
-        <Field
-          label="Address"
-          placeholder="Donor address"
+          label="Description *"
+          placeholder="Receipt description"
           multiline
-          value={address}
-          onChangeText={setAddress}
-        />
-
-        <Field
-          label="Mobile Number"
-          placeholder="Donor mobile number"
-          keyboardType="phone-pad"
-          value={mobile}
-          onChangeText={setMobile}
+          value={description}
+          onChangeText={setDescription}
         />
 
         <Field
@@ -230,68 +211,26 @@ export default function AdminReceipts() {
           value={amount}
           onChangeText={setAmount}
         />
-
-        <Field
-          label="Amount in Words"
-          placeholder="Example: Five hundred rupees only"
-          value={amountInWords}
-          onChangeText={setAmountInWords}
-        />
-
-        <Field
-          label="Donation Purpose *"
-          placeholder="Purpose of donation"
-          value={purpose}
-          onChangeText={setPurpose}
-        />
-
-        <Text style={styles.fieldLabel}>Payment Mode</Text>
-        <View style={styles.paymentModes}>
-          {PAYMENT_MODES.map((mode) => (
-            <Pressable
-              key={mode}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: paymentMode === mode }}
-              onPress={() => setPaymentMode(mode)}
-              style={[
-                styles.paymentMode,
-                paymentMode === mode && styles.paymentModeSelected
-              ]}
-            >
-              <Text
-                style={[
-                  styles.paymentModeText,
-                  paymentMode === mode && styles.paymentModeTextSelected
-                ]}
-              >
-                {mode}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Field
-          label="Cheque / Transaction Number"
-          placeholder="Optional"
-          value={paymentReference}
-          onChangeText={setPaymentReference}
-        />
-
-        <Field
-          label="Receipt Date"
-          placeholder="DD/MM/YYYY (leave blank for today)"
-          value={receiptDate}
-          onChangeText={setReceiptDate}
-        />
       </View>
 
       <View style={styles.memberCard}>
         <View style={styles.memberHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.sectionTitle}>Select Members</Text>
-            <Text style={styles.selectionText}>
-              {selected.length} selected of {members.length}
-            </Text>
+            <View style={styles.selectionRow}>
+              <Text style={styles.selectionText}>
+                {selected.length} selected of {members.length}
+              </Text>
+              <Pressable
+                onPress={() => setSelected([])}
+                disabled={sending || selected.length === 0}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.clearSelection, (sending || selected.length === 0) && styles.disabled]}>
+                  Clear
+                </Text>
+              </Pressable>
+            </View>
           </View>
           <Pressable style={styles.selectAll} onPress={toggleAllVisible}>
             <View
@@ -316,14 +255,21 @@ export default function AdminReceipts() {
           style={styles.search}
         />
 
-        {search.trim() ? (
+        {membersLoaded && search.trim() ? (
           <Text style={styles.searchHint}>
             Showing {filteredMembers.length} matching member
             {filteredMembers.length === 1 ? "" : "s"}.
           </Text>
         ) : null}
 
-        {filteredMembers.map((member) => {
+        {!membersLoaded ? (
+          <DataRequestStatus
+            loading={loadingMembers}
+            error={membersError}
+            onRetry={loadMembers}
+            message="Loading verified members..."
+          />
+        ) : filteredMembers.map((member) => {
           const checked = selected.includes(member.id);
 
           return (
@@ -358,9 +304,9 @@ export default function AdminReceipts() {
           );
         })}
 
-        {filteredMembers.length === 0 && (
+        {membersLoaded && filteredMembers.length === 0 && (
           <Text style={styles.empty}>
-            No members match your search.
+            {search.trim() ? "No members match your search." : "No verified member information was found."}
           </Text>
         )}
       </View>
@@ -372,31 +318,44 @@ export default function AdminReceipts() {
           {amount ? ` • ₹${Number(amount || 0).toLocaleString("en-IN")} each` : ""}
         </Text>
         <Text style={styles.summaryNote}>
-          Each selected member&apos;s name will appear as the receiver on their receipt.
+          Each selected member receives an individual receipt with their name.
         </Text>
       </View>
 
-      <PrimaryButton
-        title={sending ? "Sending..." : `Send Receipt to ${selected.length} Member${selected.length === 1 ? "" : "s"}`}
-        onPress={sendReceipt}
-        disabled={sending}
-      />
-
-      <PrimaryButton
-        title="Clear Selection"
-        secondary
-        onPress={() => setSelected([])}
-        disabled={sending || selected.length === 0}
-      />
-    </ScrollView>
+      </ScrollView>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <PrimaryButton
+          title="Back"
+          secondary
+          onPress={() => router.replace("/admin/dashboard")}
+          disabled={sending}
+          style={styles.footerButton}
+        />
+        <PrimaryButton
+          title={sending ? "Sending..." : `Send (${selected.length})`}
+          onPress={sendReceipt}
+          disabled={sending || !membersLoaded || selected.length === 0}
+          loading={sending}
+          style={styles.footerButton}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#F3F7FA"
+  },
+  scroll: {
+    flex: 1
+  },
   page: {
     flexGrow: 1,
     backgroundColor: "#F3F7FA",
-    padding: 15
+    padding: 15,
+    paddingBottom: 24
   },
   title: {
     fontSize: 29,
@@ -461,6 +420,20 @@ const styles = StyleSheet.create({
     color: "#777",
     marginTop: 2,
     fontSize: 12
+  },
+  selectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  clearSelection: {
+    color: "#0D568B",
+    fontSize: 12,
+    fontWeight: "800",
+    padding: 8
+  },
+  disabled: {
+    opacity: 0.45
   },
   selectAll: {
     flexDirection: "row",
@@ -572,5 +545,20 @@ const styles = StyleSheet.create({
     color: "#6A5A35",
     fontSize: 12,
     marginTop: 7
+  },
+  footer: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#F3F7FA",
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#E1E8EC"
+  },
+  footerButton: {
+    flex: 1,
+    minWidth: 0,
+    marginVertical: 2,
+    paddingHorizontal: 8
   }
 });

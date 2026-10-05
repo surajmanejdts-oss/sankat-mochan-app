@@ -62,7 +62,7 @@ export default function CreatePost() {
       />
       {image && <Image source={{ uri: image.uri }} style={styles.preview} />}
       <PrimaryButton title={image ? "Change Image" : "Choose Image"} secondary onPress={pickImage} />
-      <PrimaryButton title={loading ? "Posting..." : "Publish Post"} onPress={submit} disabled={loading} />
+      <PrimaryButton title={loading ? "Posting..." : "Publish Post"} onPress={submit} disabled={loading} loading={loading} />
       <PrimaryButton title="Cancel" danger onPress={() => router.back()} />
     </ScrollView>
   );

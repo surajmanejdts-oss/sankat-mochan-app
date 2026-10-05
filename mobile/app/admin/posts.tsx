@@ -1,5 +1,5 @@
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { DataRequestStatus } from "@/components/DataRequestStatus";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -34,8 +35,15 @@ export default function AdminPosts() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
+    const initialLoad = !hasLoadedRef.current;
+    if (initialLoad) setLoading(true);
+    setLoadError(null);
     try {
       const data = await apiFetch<{ posts: Post[] }>(
         "/admin/posts",
@@ -44,8 +52,14 @@ export default function AdminPosts() {
       );
 
       setPosts(data.posts || []);
+      hasLoadedRef.current = true;
+      setHasLoaded(true);
     } catch (e: any) {
-      Alert.alert("Posts", e?.message || "Unable to load posts.");
+      const message = e?.message || "Unable to load posts.";
+      setLoadError(message);
+      Alert.alert("Posts", message);
+    } finally {
+      if (initialLoad) setLoading(false);
     }
   }, [token]);
 
@@ -163,7 +177,11 @@ export default function AdminPosts() {
         and manage approved or rejected posts.
       </Text>
 
-      {posts.map((post) => {
+      {!hasLoaded ? (
+        <DataRequestStatus loading={loading} error={loadError} onRetry={load} message="Loading community posts..." />
+      ) : null}
+
+      {hasLoaded && posts.map((post) => {
         const status = getStatus(post);
 
         return (
@@ -255,9 +273,9 @@ export default function AdminPosts() {
         );
       })}
 
-      {!posts.length && (
+      {hasLoaded && !posts.length && (
         <Text style={styles.empty}>
-          No posts have been submitted.
+          No community post information was found.
         </Text>
       )}
     </ScrollView>

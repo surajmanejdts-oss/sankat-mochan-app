@@ -41,11 +41,46 @@ router.post("/", requireAuth, requireMember, upload.single("receipt"), async (re
     }
 
     const body = req.body;
-    const declarationAccepted = body.declarationAccepted === true || body.declarationAccepted === "true";
-    if (!body.fullName || !body.mobile || !body.address || !declarationAccepted) {
+    let declarationChecks;
+    try {
+      declarationChecks = JSON.parse(body.declarationChecks || "[]");
+    } catch {
+      return res.status(400).json({ message: "All four declaration statements must be accepted." });
+    }
+    const allDeclarationsAccepted = Array.isArray(declarationChecks) &&
+      declarationChecks.length === 4 &&
+      declarationChecks.every((checked) => checked === true);
+    const declarationAccepted =
+      (body.declarationAccepted === true || body.declarationAccepted === "true") &&
+      allDeclarationsAccepted;
+    const cooperationAmount = Number(body.cooperationAmount);
+    let signatureStrokes;
+    try {
+      signatureStrokes = JSON.parse(body.signatureData || "[]");
+    } catch {
+      return res.status(400).json({ message: "A valid signature is required." });
+    }
+    const signaturePointCount = Array.isArray(signatureStrokes)
+      ? signatureStrokes.reduce((count, stroke) => count + (Array.isArray(stroke) ? stroke.length : 0), 0)
+      : 0;
+    const hasSignature = Array.isArray(signatureStrokes) &&
+      signatureStrokes.some((stroke) =>
+        Array.isArray(stroke) &&
+        stroke.length > 1 &&
+        stroke.every((point) =>
+          point &&
+          Number.isFinite(point.x) &&
+          Number.isFinite(point.y)
+        )
+      ) &&
+      signaturePointCount <= 12000;
+    if (!body.fullName || !body.mobile || !body.address || !declarationAccepted || !hasSignature) {
       return res.status(400).json({
-        message: "Full name, mobile, address and declaration are required."
+        message: "Full name, mobile, address, all four declarations and a valid signature are required."
       });
+    }
+    if (!body.cooperationAmount || !Number.isFinite(cooperationAmount) || cooperationAmount < 0) {
+      return res.status(400).json({ message: "A valid cooperation amount is required." });
     }
 
     let familyMembers = [];
@@ -74,11 +109,13 @@ router.post("/", requireAuth, requireMember, upload.single("receipt"), async (re
       occupation: body.occupation,
       familyMembers,
       membershipFee: Number(body.membershipFee || 500),
-      cooperationAmount: Number(body.cooperationAmount || 200),
+      cooperationAmount,
       paymentDate: body.paymentDate,
       paymentMethod: body.paymentMethod,
       transactionReference: body.transactionReference,
       receiptImageUrl,
+      declarationChecks,
+      signatureData: body.signatureData,
       declarationAccepted
     });
 

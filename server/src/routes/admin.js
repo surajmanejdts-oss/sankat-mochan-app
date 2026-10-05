@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const Application = require("../models/Application");
 const User = require("../models/User");
 const Post = require("../models/Post");
@@ -47,6 +48,46 @@ router.get("/members/:id", async (req, res) => {
   const application = await Application.findOne({ user: user._id }).lean();
   const posts = await Post.find({ author: user._id }).sort({ createdAt: -1 }).lean();
   res.json({ member: user, application, posts });
+});
+
+router.patch("/members/:id/password", async (req, res) => {
+  try {
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) {
+      return res.status(400).json({ message: "Invalid member ID." });
+    }
+
+    const member = await User.findOne({ _id: req.params.id, role: "member" }).select("status").lean();
+    if (!member) return res.status(404).json({ message: "Member not found." });
+    if (member.status !== "verified") {
+      return res.status(403).json({ message: "Only verified members can have their password reset." });
+    }
+
+    const { newPassword, confirmPassword } = req.body || {};
+    if (typeof newPassword !== "string" || typeof confirmPassword !== "string" ||
+      !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: "New password and confirm password are required." });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must contain at least 6 characters." });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "New password and confirm password must match." });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const result = await User.updateOne(
+      { _id: req.params.id, role: "member", status: "verified" },
+      { $set: { passwordHash } }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(403).json({ message: "Only verified members can have their password reset." });
+    }
+
+    return res.json({ message: "Member password reset successfully." });
+  } catch (error) {
+    console.error("Member password reset failed:", error);
+    return res.status(500).json({ message: "Unable to reset the member password. Please try again." });
+  }
 });
 
 router.patch("/members/:id", async (req, res) => {

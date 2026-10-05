@@ -1,8 +1,9 @@
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { DataRequestStatus } from "@/components/DataRequestStatus";
 
 type Notification = {
   _id: string;
@@ -17,13 +18,26 @@ export default function NotificationsScreen() {
   const { token } = useAuth();
   const [items, setItems] = useState<Notification[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
+    const initialLoad = !hasLoadedRef.current;
+    if (initialLoad) setLoading(true);
+    setLoadError(null);
     try {
       const data = await apiFetch<{ notifications: Notification[] }>("/notifications", {}, token || undefined);
       setItems(data.notifications);
+      hasLoadedRef.current = true;
+      setHasLoaded(true);
     } catch (e: any) {
-      Alert.alert("Notifications", e.message);
+      const message = e?.message || "Unable to load notifications.";
+      setLoadError(message);
+      Alert.alert("Notifications", message);
+    } finally {
+      if (initialLoad) setLoading(false);
     }
   }, [token]);
 
@@ -40,8 +54,11 @@ export default function NotificationsScreen() {
 
   async function refresh() {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   return (
@@ -49,9 +66,13 @@ export default function NotificationsScreen() {
       <Text style={styles.title}>Notifications</Text>
       <Text style={styles.subtitle}>All important account and community activity.</Text>
 
-      {items.length === 0 && <Text style={styles.empty}>No notifications yet.</Text>}
+      {!hasLoaded ? (
+        <DataRequestStatus loading={loading} error={loadError} onRetry={load} message="Loading notifications..." />
+      ) : items.length === 0 ? (
+        <Text style={styles.empty}>No notification information was found.</Text>
+      ) : null}
 
-      {items.map((item) => (
+      {hasLoaded && items.map((item) => (
         <Pressable key={item._id} onPress={() => markRead(item._id)} style={[styles.card, !item.readAt && styles.unread]}>
           <View style={styles.row}>
             <Text style={styles.notificationTitle}>{item.title}</Text>

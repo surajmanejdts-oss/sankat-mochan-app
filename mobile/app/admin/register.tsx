@@ -13,32 +13,43 @@ import {
   View
 } from "react-native";
 import { Field } from "@/components/Field";
-import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/context/AuthContext";
 
-export default function Login() {
+export default function AdminRegisterMember() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { register } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
+  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function submit() {
-    if (!username || !password) return Alert.alert("Missing details", "Enter username and password.");
-    if (!/^\d{10}$/.test(username)) {
-      return Alert.alert("Invalid phone number", "Enter the 10-digit phone number used when your account was registered.");
+    if (!name.trim() || !username.trim() || !password) {
+      Alert.alert("Missing details", "Enter the member's name, username, and password.");
+      return;
     }
+    if (!/^\d{10}$/.test(username)) {
+      Alert.alert("Invalid phone number", "Enter a 10-digit phone number to use as the member's username.");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Password too short", "Password must contain at least 6 characters.");
+      return;
+    }
+
     try {
-      setLoading(true);
-      await login(username, password);
-      router.replace("/member");
-    } catch (e: any) {
-      Alert.alert("Login failed", e.message);
+      setSaving(true);
+      await register(name.trim(), username.trim(), password);
+      Alert.alert("Member registered", "The member account was created and is pending verification.", [
+        { text: "Done", onPress: () => router.replace("/admin/members") }
+      ]);
+    } catch (error: any) {
+      Alert.alert("Registration failed", error?.message || "Unable to register member.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
@@ -53,23 +64,24 @@ export default function Login() {
         contentContainerStyle={styles.page}
         keyboardShouldPersistTaps="handled"
       >
-        <LogoHeader compact />
-        <Text style={styles.title}>Member Login</Text>
+        <Text style={styles.title}>Register a Member</Text>
+        <Text style={styles.subtitle}>New member accounts are created by administrators and begin as pending.</Text>
+        <Field label="Full name *" value={name} onChangeText={setName} placeholder="Enter the member's full name" />
         <Field
-          label="Phone number (username)"
+          label="Phone number (username) *"
           value={username}
           onChangeText={(value) => setUsername(value.replace(/\D/g, "").slice(0, 10))}
-          placeholder="Enter your 10-digit phone number"
+          placeholder="Enter 10-digit phone number"
           keyboardType="number-pad"
           maxLength={10}
         />
         <View style={styles.passwordField}>
-          <Text style={styles.passwordLabel}>Password</Text>
+          <Text style={styles.passwordLabel}>Password *</Text>
           <View style={styles.passwordInputWrap}>
             <TextInput
               value={password}
               onChangeText={setPassword}
-              placeholder="Your password"
+              placeholder="At least 6 characters"
               placeholderTextColor="#8A8A8A"
               secureTextEntry={!showPassword}
               autoCapitalize="none"
@@ -91,8 +103,8 @@ export default function Login() {
             </Pressable>
           </View>
         </View>
-        <PrimaryButton title={loading ? "Logging in..." : "Login"} onPress={submit} disabled={loading} loading={loading} />
-        <PrimaryButton title="Admin Login" onPress={() => router.push("/admin/login")} />
+        <PrimaryButton title={saving ? "Creating..." : "Create Member Account"} onPress={submit} disabled={saving} loading={saving} />
+        <PrimaryButton title="Back to Dashboard" secondary onPress={() => router.replace("/admin/dashboard")} disabled={saving} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -100,8 +112,9 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  page: { flexGrow: 1, backgroundColor: "#FFF9EA", padding: 22, justifyContent: "center", paddingBottom: 32 },
-  title: { fontSize: 27, fontWeight: "900", color: "#153E60", marginBottom: 20 },
+  page: { flexGrow: 1, backgroundColor: "#F3F7FA", padding: 20, justifyContent: "center", paddingBottom: 32 },
+  title: { fontSize: 28, fontWeight: "900", color: "#173C5A", marginBottom: 8 },
+  subtitle: { color: "#66737B", lineHeight: 21, marginBottom: 20 },
   passwordField: { marginBottom: 12 },
   passwordLabel: { color: "#173C5A", fontWeight: "700", marginBottom: 6 },
   passwordInputWrap: { position: "relative", justifyContent: "center" },

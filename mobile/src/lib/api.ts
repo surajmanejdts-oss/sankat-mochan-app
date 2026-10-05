@@ -1,4 +1,4 @@
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.10:5000/api").replace(/\/$/, "");
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || "https://sankat-mochan-app.onrender.com/api").replace(/\/$/, "");
 
 export async function apiFetch<T>(
   path: string,

@@ -1,23 +1,22 @@
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-
-const isWeb = typeof window !== "undefined";
 
 export async function getStorageItem(
   key: string
 ): Promise<string | null> {
-  if (isWeb) {
-    return window.localStorage.getItem(key);
+  if (Platform.OS === "web") {
+    return localStorage.getItem(key);
   }
 
-  return SecureStore.getItemAsync(key);
+  return await SecureStore.getItemAsync(key);
 }
 
 export async function setStorageItem(
   key: string,
   value: string
 ): Promise<void> {
-  if (isWeb) {
-    window.localStorage.setItem(key, value);
+  if (Platform.OS === "web") {
+    localStorage.setItem(key, value);
     return;
   }
 
@@ -27,8 +26,8 @@ export async function setStorageItem(
 export async function deleteStorageItem(
   key: string
 ): Promise<void> {
-  if (isWeb) {
-    window.localStorage.removeItem(key);
+  if (Platform.OS === "web") {
+    localStorage.removeItem(key);
     return;
   }
 

@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Field } from "@/components/Field";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { SignaturePad } from "@/components/SignaturePad";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 
@@ -18,6 +19,9 @@ export default function Application() {
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<any>(null);
   const [family, setFamily] = useState<Family[]>([emptyFamily()]);
+  const [cooperationAmount, setCooperationAmount] = useState("200");
+  const [declarationChecks, setDeclarationChecks] = useState([false, false, false, false]);
+  const [signatureData, setSignatureData] = useState("");
 
   const [form, setForm] = useState({
     fullName: "", fatherOrHusbandName: "", dob: "", mobile: "", whatsapp: "", email: "",
@@ -40,9 +44,23 @@ export default function Application() {
     setFamily((prev) => prev.map((item, i) => i === index ? { ...item, [key]: value } : item));
   }
 
+  function toggleDeclaration(index: number) {
+    setDeclarationChecks((current) => current.map((checked, i) => i === index ? !checked : checked));
+  }
+
   async function submit() {
     if (!form.fullName || !form.mobile || !form.address) {
       return Alert.alert("Required", "Full name, mobile number and address are required.");
+    }
+    const amount = Number(cooperationAmount);
+    if (!cooperationAmount.trim() || !Number.isFinite(amount) || amount < 0) {
+      return Alert.alert("Invalid amount", "Enter a valid cooperation amount.");
+    }
+    if (!declarationChecks.every(Boolean)) {
+      return Alert.alert("Declaration required", "Please check all four declaration statements before submitting.");
+    }
+    if (!signatureData) {
+      return Alert.alert("Signature required", "Please sign in the signature box before submitting.");
     }
 
     try {
@@ -50,9 +68,11 @@ export default function Application() {
       const data = new FormData();
       Object.entries(form).forEach(([key, value]) => data.append(key, String(value)));
       data.append("membershipFee", "500");
-      data.append("cooperationAmount", "200");
+      data.append("cooperationAmount", String(amount));
       data.append("familyMembers", JSON.stringify(family.filter((x) => x.name.trim())));
-      data.append("declarationAccepted", "true");
+      data.append("declarationChecks", JSON.stringify(declarationChecks));
+      data.append("declarationAccepted", String(declarationChecks.every(Boolean)));
+      data.append("signatureData", signatureData);
 
       if (receipt) {
         const ext = receipt.uri.split(".").pop() || "jpg";
@@ -116,7 +136,7 @@ export default function Application() {
         <Text style={styles.section}>Membership & Payment</Text>
         <View style={styles.amountRow}>
           <View style={styles.amountBox}><Text style={styles.amountLabel}>Membership Fee</Text><Text style={styles.amount}>₹500</Text></View>
-          <View style={styles.amountBox}><Text style={styles.amountLabel}>Cooperation</Text><Text style={styles.amount}>₹200</Text></View>
+          <View style={styles.amountBox}><Text style={styles.amountLabel}>Cooperation</Text><Text style={styles.amount}>₹{cooperationAmount || "0"}</Text></View>
         </View>
         <Field label="Payment Date" placeholder="DD/MM/YYYY" value={form.paymentDate} onChangeText={(v) => set("paymentDate", v)} />
         <Field label="Payment Method" placeholder="UPI / Bank Transfer / Cash / Other" value={form.paymentMethod} onChangeText={(v) => set("paymentMethod", v)} />
@@ -124,11 +144,44 @@ export default function Application() {
         <PrimaryButton title={receipt ? "Receipt Selected ✓" : "Attach Payment Receipt (Optional)"} secondary onPress={chooseReceipt} />
 
         <Text style={styles.section}>Declaration</Text>
-        <Text style={styles.declaration}>
-          I declare that the information provided by me is true and correct. I agree to follow the organization's rules and objectives. I understand that membership is subject to verification.
-        </Text>
+        <Field
+          label="सहयोग राशि / Amount (₹) *"
+          value={cooperationAmount}
+          onChangeText={(value) => setCooperationAmount(value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1"))}
+          placeholder="राशि दर्ज करें"
+          keyboardType="decimal-pad"
+        />
+        {[
+          "मैं, उपरोक्त सभी जानकारी सत्य एवं सही होने की घोषणा करता/करती हूँ।",
+          "मैं संस्था के नियमों व उद्देश्यों से सहमत हूँ और सदस्यता हेतु आवेदन करता/करती हूँ।",
+          "मुझे ज्ञात है कि यह सदस्यता स्वैच्छिक है तथा संस्था द्वारा निर्धारित नियमों का पालन करना होगा।",
+          `आवश्यकता होने पर ₹${cooperationAmount || "___"} सहयोग राशि न देने की स्थिति में मेरी सदस्यता स्वतः निरस्त मानी जाएगी।`
+        ].map((statement, index) => {
+          const checked = declarationChecks[index];
+          return (
+            <Pressable
+              key={index}
+              onPress={() => toggleDeclaration(index)}
+              style={styles.declarationRow}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked }}
+            >
+              <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                {checked && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.declarationText}>{statement}</Text>
+            </Pressable>
+          );
+        })}
 
-        <PrimaryButton title={loading ? "Submitting..." : "Submit Application"} onPress={submit} disabled={loading} />
+        <SignaturePad value={signatureData} onChange={setSignatureData} />
+
+        <PrimaryButton
+          title={loading ? "Submitting..." : "Submit Application"}
+          onPress={submit}
+          disabled={loading || !declarationChecks.every(Boolean) || !signatureData}
+          loading={loading}
+        />
         <PrimaryButton title="Cancel" danger onPress={() => router.back()} />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -148,5 +201,9 @@ const styles = StyleSheet.create({
   amountBox: { flex: 1, backgroundColor: "#FFF1C9", borderRadius: 12, padding: 13, borderWidth: 1, borderColor: "#E6BA50" },
   amountLabel: { color: "#725016", fontWeight: "700" },
   amount: { fontSize: 24, fontWeight: "900", color: "#B3261E", marginTop: 4 },
-  declaration: { backgroundColor: "#FFF8DD", borderRadius: 12, padding: 14, lineHeight: 21, color: "#4F4635", marginBottom: 8 }
+  declarationRow: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFF8DD", borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#E6D9AE" },
+  checkbox: { width: 22, height: 22, borderWidth: 1.5, borderColor: "#7C7C70", borderRadius: 3, alignItems: "center", justifyContent: "center", marginRight: 10, marginTop: 1 },
+  checkboxChecked: { backgroundColor: "#0D568B", borderColor: "#0D568B" },
+  checkmark: { color: "#fff", fontSize: 16, fontWeight: "900", lineHeight: 19 },
+  declarationText: { flex: 1, lineHeight: 22, color: "#4F4635", fontSize: 15 }
 });

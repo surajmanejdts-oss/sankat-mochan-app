@@ -1,18 +1,22 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from "react-native";
 
 export function PrimaryButton({
   title,
   onPress,
   disabled = false,
+  loading = false,
   secondary = false,
-  danger = false
+  danger = false,
+  style
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
+  loading?: boolean;
   secondary?: boolean;
   danger?: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable
@@ -22,11 +26,12 @@ export function PrimaryButton({
         styles.button,
         secondary && styles.secondary,
         danger && styles.danger,
+        style,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed
       ]}
     >
-      {disabled ? <ActivityIndicator color="#fff" /> : <Text style={styles.text}>{title}</Text>}
+      {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.text}>{title}</Text>}
     </Pressable>
   );
 }

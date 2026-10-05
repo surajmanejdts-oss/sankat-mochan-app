@@ -1,5 +1,3 @@
-import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
 import { useRouter, useSegments } from "expo-router";
 import React, {
   createContext,
@@ -10,10 +8,6 @@ import React, {
 
 import { apiFetch } from "@/lib/api";
 import { registerForPushNotifications } from "@/services/notifications";
-
-/* =========================================================
-   TYPES
-========================================================= */
 
 export type MemberUser = {
   id: string;
@@ -41,82 +35,7 @@ type AuthContextType = {
   refreshUser: () => Promise<void>;
 };
 
-/* =========================================================
-   CONTEXT
-========================================================= */
-
 const AuthContext = createContext<AuthContextType | null>(null);
-
-/* =========================================================
-   STORAGE KEYS
-========================================================= */
-
-const TOKEN_KEY = "sankat_mochan_token";
-const ROLE_KEY = "sankat_mochan_role";
-const USER_KEY = "sankat_mochan_user";
-
-/* =========================================================
-   CROSS-PLATFORM STORAGE
-   Android/iOS -> Expo SecureStore
-   Web          -> localStorage
-========================================================= */
-
-async function getStorageItem(key: string): Promise<string | null> {
-  try {
-    if (Platform.OS === "web") {
-      if (typeof window === "undefined") {
-        return null;
-      }
-
-      return window.localStorage.getItem(key);
-    }
-
-    return await SecureStore.getItemAsync(key);
-  } catch (error) {
-    console.error(`Storage get error for ${key}:`, error);
-    return null;
-  }
-}
-
-async function setStorageItem(
-  key: string,
-  value: string
-): Promise<void> {
-  try {
-    if (Platform.OS === "web") {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(key, value);
-      }
-
-      return;
-    }
-
-    await SecureStore.setItemAsync(key, value);
-  } catch (error) {
-    console.error(`Storage set error for ${key}:`, error);
-    throw error;
-  }
-}
-
-async function deleteStorageItem(key: string): Promise<void> {
-  try {
-    if (Platform.OS === "web") {
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(key);
-      }
-
-      return;
-    }
-
-    await SecureStore.deleteItemAsync(key);
-  } catch (error) {
-    console.error(`Storage delete error for ${key}:`, error);
-  }
-}
-
-/* =========================================================
-   AUTH PROVIDER
-========================================================= */
 
 export function AuthProvider({
   children,
@@ -126,153 +45,94 @@ export function AuthProvider({
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<MemberUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  /*
+   * We intentionally DO NOT restore the login session
+   * from SecureStore / AsyncStorage.
+   *
+   * Login exists only in React memory.
+   *
+   * Therefore:
+   * - App running -> user stays logged in
+   * - Navigate between screens -> user stays logged in
+   * - Minimize app -> session remains while app process is alive
+   * - Completely close/kill app -> session is lost
+   * - Open app again -> login screen is shown
+   */
   const [loading, setLoading] = useState(true);
 
   const segments = useSegments();
   const router = useRouter();
 
-  /* =======================================================
-     RESTORE LOGIN SESSION
-  ======================================================= */
-
+  /*
+   * Initial authentication state
+   *
+   * There is no stored session to restore.
+   */
   useEffect(() => {
-    let mounted = true;
-
-    async function restoreSession() {
-      try {
-        const [savedToken, role, savedUser] =
-          await Promise.all([
-            getStorageItem(TOKEN_KEY),
-            getStorageItem(ROLE_KEY),
-            getStorageItem(USER_KEY),
-          ]);
-
-        if (!mounted) {
-          return;
-        }
-
-        if (savedToken) {
-          setToken(savedToken);
-        } else {
-          setToken(null);
-        }
-
-        if (role === "admin") {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-        }
-
-        if (savedUser) {
-          try {
-            const parsedUser = JSON.parse(savedUser);
-
-            setUser(parsedUser);
-          } catch (error) {
-            console.error(
-              "Invalid saved user data:",
-              error
-            );
-
-            await deleteStorageItem(USER_KEY);
-
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error(
-          "Failed to restore session:",
-          error
-        );
-
-        if (mounted) {
-          setToken(null);
-          setUser(null);
-          setIsAdmin(false);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    restoreSession();
-
-    return () => {
-      mounted = false;
-    };
+    setLoading(false);
   }, []);
 
-  /* =======================================================
-     PUSH NOTIFICATIONS
-  ======================================================= */
-
+  /*
+   * Register device for push notifications after login.
+   *
+   * Notification registration must never prevent the user
+   * from logging in.
+   */
   useEffect(() => {
     if (loading || !token) {
       return;
     }
 
-    /*
-     * Do not block authentication if notification
-     * registration fails.
-     */
     void registerForPushNotifications(token);
   }, [loading, token]);
 
-  /* =======================================================
-     ROUTE PROTECTION
-  ======================================================= */
-
+  /*
+   * Route protection
+   */
   useEffect(() => {
     if (loading) {
       return;
     }
 
     const firstSegment = segments[0];
+    const isRootRoute = firstSegment === undefined;
+    const isAdminLoginRoute = segments.join("/") === "admin/login";
 
-    const inAuth =
-      firstSegment === "login" ||
-      firstSegment === "register";
+    const inAuth = firstSegment === "login";
 
     const inAdmin = firstSegment === "admin";
     const inMember = firstSegment === "member";
-    const inNotifications =
-      firstSegment === "notifications";
+    const inNotifications = firstSegment === "notifications";
 
-    /* =====================================================
-       NOT LOGGED IN
-    ===================================================== */
-
+    /*
+     * User is NOT logged in
+     */
     if (!token) {
       /*
-       * Login/register pages are accessible
+       * Root landing page and auth pages are allowed.
        */
-      if (inAuth) {
+      if (isRootRoute || inAuth) {
         return;
       }
 
       /*
        * Allow admin login page.
-       *
-       * Example:
-       * /admin/login
        */
-      if (inAdmin && segments.length > 1) {
+      if (inAdmin && isAdminLoginRoute) {
         return;
       }
 
+      /*
+       * Anything else requires authentication.
+       */
       router.replace("/");
-
       return;
     }
 
-    /* =====================================================
-       ADMIN LOGGED IN
-    ===================================================== */
-
+    /*
+     * Admin is logged in
+     */
     if (isAdmin) {
       if (!inAdmin && !inNotifications) {
         router.replace("/admin/dashboard");
@@ -281,10 +141,9 @@ export function AuthProvider({
       return;
     }
 
-    /* =====================================================
-       MEMBER LOGGED IN
-    ===================================================== */
-
+    /*
+     * Member is logged in
+     */
     if (user) {
       if (!inMember && !inNotifications) {
         router.replace("/member");
@@ -301,55 +160,25 @@ export function AuthProvider({
     router,
   ]);
 
-  /* =======================================================
-     SAVE SESSION
-  ======================================================= */
-
-  async function saveSession(
+  /*
+   * Save login session ONLY IN MEMORY.
+   *
+   * Nothing is written to SecureStore.
+   * Nothing is written to AsyncStorage.
+   */
+  function saveSession(
     newToken: string,
     newUser: MemberUser | null,
     admin: boolean
   ) {
-    /*
-     * Save authentication token
-     */
-    await setStorageItem(
-      TOKEN_KEY,
-      newToken
-    );
-
-    /*
-     * Save role
-     */
-    await setStorageItem(
-      ROLE_KEY,
-      admin ? "admin" : "member"
-    );
-
-    /*
-     * Save user
-     */
-    if (newUser) {
-      await setStorageItem(
-        USER_KEY,
-        JSON.stringify(newUser)
-      );
-    } else {
-      await deleteStorageItem(USER_KEY);
-    }
-
-    /*
-     * Update React state
-     */
     setToken(newToken);
     setUser(newUser);
     setIsAdmin(admin);
   }
 
-  /* =======================================================
-     MEMBER LOGIN
-  ======================================================= */
-
+  /*
+   * Member login
+   */
   async function login(
     username: string,
     password: string
@@ -365,25 +194,25 @@ export function AuthProvider({
       }),
     });
 
-    await saveSession(
+    /*
+     * Store only in React state.
+     */
+    saveSession(
       data.token,
       data.user,
       false
     );
 
     /*
-     * Notification registration should not
-     * prevent successful login.
+     * Register push notification token.
+     * Do not block login if notification registration fails.
      */
-    void registerForPushNotifications(
-      data.token
-    );
+    void registerForPushNotifications(data.token);
   }
 
-  /* =======================================================
-     ADMIN LOGIN
-  ======================================================= */
-
+  /*
+   * Admin login
+   */
   async function adminLogin(
     username: string,
     password: string
@@ -402,30 +231,34 @@ export function AuthProvider({
       }),
     });
 
-    await saveSession(
+    /*
+     * Admin user details do not need to be stored.
+     * The token tells the backend that this is an admin.
+     */
+    saveSession(
       data.token,
       null,
       true
     );
 
     /*
-     * Notification registration should not
-     * prevent successful login.
+     * Register push notification token.
      */
-    void registerForPushNotifications(
-      data.token
-    );
+    void registerForPushNotifications(data.token);
   }
 
-  /* =======================================================
-     REGISTER MEMBER
-  ======================================================= */
-
+  /*
+   * New member registration
+   */
   async function register(
     name: string,
     username: string,
     password: string
   ) {
+    if (!token || !isAdmin) {
+      throw new Error("Only an administrator can register members.");
+    }
+
     await apiFetch("/auth/register", {
       method: "POST",
       body: JSON.stringify({
@@ -433,13 +266,12 @@ export function AuthProvider({
         username,
         password,
       }),
-    });
+    }, token);
   }
 
-  /* =======================================================
-     REFRESH USER
-  ======================================================= */
-
+  /*
+   * Refresh logged-in member information
+   */
   async function refreshUser() {
     if (!token || isAdmin) {
       return;
@@ -450,39 +282,21 @@ export function AuthProvider({
     }>("/auth/me", {}, token);
 
     setUser(data.user);
-
-    await setStorageItem(
-      USER_KEY,
-      JSON.stringify(data.user)
-    );
   }
 
-  /* =======================================================
-     LOGOUT
-  ======================================================= */
-
+  /*
+   * Logout
+   *
+   * Since there is no persistent storage,
+   * clearing React state is enough.
+   */
   async function logout() {
-    try {
-      await deleteStorageItem(TOKEN_KEY);
-      await deleteStorageItem(ROLE_KEY);
-      await deleteStorageItem(USER_KEY);
-    } catch (error) {
-      console.error(
-        "Logout storage error:",
-        error
-      );
-    }
-
     setToken(null);
     setUser(null);
     setIsAdmin(false);
 
     router.replace("/");
   }
-
-  /* =======================================================
-     PROVIDER
-  ======================================================= */
 
   return (
     <AuthContext.Provider
@@ -502,10 +316,6 @@ export function AuthProvider({
     </AuthContext.Provider>
   );
 }
-
-/* =========================================================
-   useAuth HOOK
-========================================================= */
 
 export function useAuth() {
   const value = useContext(AuthContext);

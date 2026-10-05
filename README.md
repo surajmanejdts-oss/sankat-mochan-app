@@ -4,9 +4,9 @@ Full-stack starter for a React Native/Expo mobile app + Node.js/Express API + Mo
 
 ## Main workflow
 
-1. New member registers with name, username and password.
-2. Registration is saved in MongoDB and the member is sent to login.
-3. Member logs in with the same credentials.
+1. An administrator creates a member account with name, username and password.
+2. Registration is saved in MongoDB and the member is given their login credentials.
+3. Member logs in with those credentials.
 4. Member completes the English membership application.
 5. Application is stored in a separate MongoDB collection.
 6. Admin receives an in-app notification and, after push setup, a phone notification.
@@ -52,13 +52,13 @@ cd mobile
 npm install
 ```
 
-Create `mobile/.env`:
+Create `mobile/.env` for local development:
 
 ```env
 EXPO_PUBLIC_API_URL=http://192.168.1.101:5000/api
 ```
 
-Replace the IP with the current IPv4 address of the development PC.
+Replace the IP with the current IPv4 address of the development PC. Without this override, the app uses the hosted API, including in EAS builds.
 
 Start Expo:
 
@@ -134,6 +134,9 @@ The admin dashboard has:
 
 - Notifications
 - Member list
+- Admin-only member registration
+- Searchable member reports with selected-member PDF export
+- Total, verified and pending member counts in reports
 - Pending/verified member colors
 - Member verification
 - Member detail view

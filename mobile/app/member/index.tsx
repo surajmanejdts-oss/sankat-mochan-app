@@ -1,28 +1,64 @@
 import { useRouter, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { NotificationBell } from "@/components/NotificationBell";
+import { DataRequestStatus } from "@/components/DataRequestStatus";
 
 type Application = { _id: string; submittedAt: string; };
+type VerificationNotice = { _id: string; title: string; body: string };
 
 export default function MemberHome() {
   const router = useRouter();
   const { token, user, logout, refreshUser } = useAuth();
   const [application, setApplication] = useState<Application | null>(null);
+  const [verificationNotice, setVerificationNotice] = useState<VerificationNotice | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!token) return;
+    const initialLoad = !hasLoadedRef.current;
+    if (initialLoad) setLoading(true);
+    setLoadError(null);
     try {
       await refreshUser();
       const data = await apiFetch<{ application: Application | null }>("/applications/me", {}, token);
       setApplication(data.application);
+
+      try {
+        const notificationData = await apiFetch<{ notifications: (VerificationNotice & { type: string; readAt: string | null })[] }>(
+          "/notifications",
+          {},
+          token
+        );
+        const unseenVerifications = notificationData.notifications.filter(
+          (notification) => notification.type === "member_verified" && !notification.readAt
+        );
+        setVerificationNotice(unseenVerifications[0] || null);
+        await Promise.all(
+          unseenVerifications.map((notification) =>
+            apiFetch(`/notifications/${notification._id}/read`, { method: "PATCH" }, token)
+              .catch(() => undefined)
+          )
+        );
+      } catch {
+        setVerificationNotice(null);
+      }
+      hasLoadedRef.current = true;
+      setHasLoaded(true);
     } catch (e: any) {
-      if (!String(e.message).includes("Authentication")) Alert.alert("Error", e.message);
+      const message = e?.message || "Unable to load your member information.";
+      setLoadError(message);
+      if (!String(message).includes("Authentication")) Alert.alert("Error", message);
+    } finally {
+      if (initialLoad) setLoading(false);
     }
   }, [token, refreshUser]);
 
@@ -30,8 +66,11 @@ export default function MemberHome() {
 
   async function refresh() {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   const verified = user?.status === "verified";
@@ -42,6 +81,10 @@ export default function MemberHome() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
       <LogoHeader compact />
+      {!hasLoaded ? (
+        <DataRequestStatus loading={loading} error={loadError} onRetry={load} message="Loading your information..." />
+      ) : (
+        <>
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.greeting}>Hello, {user?.name}</Text>
@@ -61,21 +104,22 @@ export default function MemberHome() {
           <Text style={styles.body}>Fill the application form using the English version of the supplied membership form.</Text>
           <PrimaryButton title="Open Application Form" onPress={() => router.push("/member/application")} />
         </View>
-      ) : (
+      ) : !verified ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {verified ? "Application verified ✓" : "Application submitted"}
-          </Text>
-          <Text style={styles.body}>
-            {verified
-              ? "Your membership application has been verified. Your receipts are available in the Receipts section below."
-              : "Your application is under review. Please wait up to 24 hours while the administrator verifies your information."}
-          </Text>
+          <Text style={styles.cardTitle}>Application submitted</Text>
+          <Text style={styles.body}>Your application is under review. Please wait up to 24 hours while the administrator verifies your information.</Text>
           <Text style={styles.small}>
             Submitted: {new Date(application.submittedAt).toLocaleString()}
           </Text>
         </View>
-      )}
+      ) : null}
+
+      {verificationNotice ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Application verified ✓</Text>
+          <Text style={styles.body}>{verificationNotice.body}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>My Receipts</Text>
@@ -106,6 +150,8 @@ export default function MemberHome() {
       )}
 
       <PrimaryButton title="Logout" danger onPress={logout} />
+        </>
+      )}
     </ScrollView>
   );
 }

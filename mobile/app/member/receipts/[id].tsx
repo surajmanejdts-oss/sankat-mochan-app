@@ -134,24 +134,34 @@ export default function ReceiptDetails() {
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>People</Text>
-        <Detail label="Receiver name" value={receiverName} />
-        <Detail label="Donor name" value={donorName} />
-        <Detail label="Father / husband name" value={textValue("fatherOrHusbandName") || "Not provided"} />
-        <Detail label="Address" value={textValue("address") || "Not provided"} />
-        <Detail label="Mobile number" value={textValue("mobile") || "Not provided"} />
-      </View>
+      {receipt.type === "manual" ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Receipt details</Text>
+          <Detail label="Receiver name" value={receiverName} />
+          <Detail label="Description" value={receipt.description || "Not provided"} />
+        </View>
+      ) : (
+        <>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>People</Text>
+            <Detail label="Receiver name" value={receiverName} />
+            <Detail label="Donor name" value={donorName} />
+            <Detail label="Father / husband name" value={textValue("fatherOrHusbandName") || "Not provided"} />
+            <Detail label="Address" value={textValue("address") || "Not provided"} />
+            <Detail label="Mobile number" value={textValue("mobile") || "Not provided"} />
+          </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Donation details</Text>
-        <Detail label="Receipt number" value={receipt.receiptNumber} />
-        <Detail label="Receipt date" value={formatDate(receipt.receiptDate)} />
-        <Detail label="Amount in words" value={textValue("amountInWords") || "Not provided"} />
-        <Detail label="Purpose" value={purpose} />
-        <Detail label="Payment method" value={receipt.paymentMethod || "Not provided"} />
-        <Detail label="Transaction reference" value={receipt.transactionReference || "Not provided"} />
-      </View>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Donation details</Text>
+            <Detail label="Receipt number" value={receipt.receiptNumber} />
+            <Detail label="Receipt date" value={formatDate(receipt.receiptDate)} />
+            <Detail label="Amount in words" value={textValue("amountInWords") || "Not provided"} />
+            <Detail label="Purpose" value={purpose} />
+            <Detail label="Payment method" value={receipt.paymentMethod || "Not provided"} />
+            <Detail label="Transaction reference" value={receipt.transactionReference || "Not provided"} />
+          </View>
+        </>
+      )}
 
       <PrimaryButton
         title="Back to Receipts"

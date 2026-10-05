@@ -1,22 +1,25 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
-const { signMember, signAdmin, requireAuth, requireMember } = require("../middleware/auth");
-const { notifyAdmins } = require("../utils/notifications");
+const { signMember, signAdmin, requireAuth, requireMember, requireAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.post("/register", async (req, res) => {
+router.post("/register", requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name, username, password } = req.body;
-    if (!name || !username || !password) {
+    if (typeof name !== "string" || typeof username !== "string" || typeof password !== "string" ||
+      !name.trim() || !username.trim() || !password) {
       return res.status(400).json({ message: "Name, username and password are required." });
+    }
+    const normalized = username.trim();
+    if (!/^\d{10}$/.test(normalized)) {
+      return res.status(400).json({ message: "Username must be a 10-digit phone number." });
     }
     if (password.length < 6) {
       return res.status(400).json({ message: "Password must contain at least 6 characters." });
     }
 
-    const normalized = username.trim().toLowerCase();
     const exists = await User.findOne({ username: normalized });
     if (exists) return res.status(409).json({ message: "Username is already registered." });
 
@@ -25,13 +28,6 @@ router.post("/register", async (req, res) => {
       name: name.trim(),
       username: normalized,
       passwordHash
-    });
-
-    await notifyAdmins({
-      type: "member_registered",
-      title: "New member registration",
-      body: `${user.name} (@${user.username}) has registered and is waiting for verification.`,
-      data: { userId: user._id.toString() }
     });
 
     res.status(201).json({

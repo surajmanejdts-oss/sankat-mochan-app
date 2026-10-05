@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { NotificationBell } from "@/components/NotificationBell";
+import { DataRequestStatus } from "@/components/DataRequestStatus";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -40,8 +41,15 @@ export default function MemberReceipts() {
   const { token } = useAuth();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
+    const initialLoad = !hasLoadedRef.current;
+    if (initialLoad) setLoading(true);
+    setLoadError(null);
     try {
       const data = await apiFetch<{ receipts: Receipt[] }>(
         "/receipts",
@@ -49,8 +57,14 @@ export default function MemberReceipts() {
         token || undefined
       );
       setReceipts(data.receipts || []);
+      hasLoadedRef.current = true;
+      setHasLoaded(true);
     } catch (e: any) {
-      Alert.alert("Receipts", e?.message || "Unable to load receipts.");
+      const message = e?.message || "Unable to load receipts.";
+      setLoadError(message);
+      Alert.alert("Receipts", message);
+    } finally {
+      if (initialLoad) setLoading(false);
     }
   }, [token]);
 
@@ -86,10 +100,12 @@ export default function MemberReceipts() {
         <NotificationBell />
       </View>
 
-      {receipts.length === 0 ? (
+      {!hasLoaded ? (
+        <DataRequestStatus loading={loading} error={loadError} onRetry={load} message="Loading receipts..." />
+      ) : receipts.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyIcon}>🧾</Text>
-          <Text style={styles.emptyTitle}>No receipts yet</Text>
+          <Text style={styles.emptyTitle}>No receipt information was found</Text>
           <Text style={styles.emptyText}>
             Your membership receipt will appear here after your application is
             verified. Any additional receipts sent by the admin will also
@@ -124,7 +140,7 @@ export default function MemberReceipts() {
               <Text style={styles.badge}>
                 {receipt.type === "application" ? "MEMBERSHIP" : "RECEIPT"}
               </Text>
-              {receipt.category ? (
+              {receipt.type === "application" && receipt.category ? (
                 <Text style={styles.category}>{receipt.category}</Text>
               ) : null}
             </View>
@@ -133,24 +149,26 @@ export default function MemberReceipts() {
               <Text style={styles.description}>{receipt.description}</Text>
             ) : null}
 
-            <View style={styles.details}>
-              <Detail
-                label="Receipt date"
-                value={new Date(receipt.receiptDate).toLocaleDateString()}
-              />
-              {receipt.paymentMethod ? (
-                <Detail label="Payment method" value={receipt.paymentMethod} />
-              ) : null}
-              {receipt.transactionReference ? (
+            {receipt.type === "application" ? (
+              <View style={styles.details}>
                 <Detail
-                  label="Transaction reference"
-                  value={receipt.transactionReference}
+                  label="Receipt date"
+                  value={new Date(receipt.receiptDate).toLocaleDateString()}
                 />
-              ) : null}
-              {receipt.issuedBy ? (
-                <Detail label="Issued by" value={receipt.issuedBy} />
-              ) : null}
-            </View>
+                {receipt.paymentMethod ? (
+                  <Detail label="Payment method" value={receipt.paymentMethod} />
+                ) : null}
+                {receipt.transactionReference ? (
+                  <Detail
+                    label="Transaction reference"
+                    value={receipt.transactionReference}
+                  />
+                ) : null}
+                {receipt.issuedBy ? (
+                  <Detail label="Issued by" value={receipt.issuedBy} />
+                ) : null}
+              </View>
+            ) : null}
             <Text style={styles.viewDetails}>View full receipt details</Text>
           </Pressable>
         ))

@@ -31,7 +31,11 @@ export default function Members() {
     setLoadError(null);
     try {
       const data = await apiFetch<{ members: Member[] }>("/admin/members", {}, token || undefined);
-      setMembers(data.members);
+      setMembers([...data.members].sort((a, b) => {
+        const statusOrder = a.status.localeCompare(b.status);
+        if (statusOrder !== 0) return statusOrder;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }));
       hasLoadedRef.current = true;
       setHasLoaded(true);
     } catch (e: any) {

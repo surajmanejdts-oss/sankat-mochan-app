@@ -369,12 +369,12 @@ router.get("/posts", async (_req, res) => {
 
 router.patch("/posts/:id/approve", async (req, res) => {
   const post = await Post.findByIdAndUpdate(
-    req.params.id,
+    { _id: req.params.id, author: { $ne: null }, status: "pending" },
     { status: "approved", reviewedAt: new Date(), reviewedBy: req.auth.username },
     { new: true }
   ).populate("author", "name username");
 
-  if (!post) return res.status(404).json({ message: "Post not found." });
+  if (!post) return res.status(404).json({ message: "Pending member post not found." });
 
   await notifyMember({
     userId: post.author._id,
@@ -397,12 +397,12 @@ router.patch("/posts/:id/approve", async (req, res) => {
 
 router.patch("/posts/:id/reject", async (req, res) => {
   const post = await Post.findByIdAndUpdate(
-    req.params.id,
+    { _id: req.params.id, author: { $ne: null }, status: "pending" },
     { status: "rejected", reviewedAt: new Date(), reviewedBy: req.auth.username },
     { new: true }
   ).populate("author", "name username");
 
-  if (!post) return res.status(404).json({ message: "Post not found." });
+  if (!post) return res.status(404).json({ message: "Pending member post not found." });
 
   await notifyMember({
     userId: post.author._id,

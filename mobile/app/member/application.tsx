@@ -19,7 +19,7 @@ export default function Application() {
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<any>(null);
   const [family, setFamily] = useState<Family[]>([emptyFamily()]);
-  const [cooperationAmount, setCooperationAmount] = useState("200");
+  const [applicationAmount, setApplicationAmount] = useState("");
   const [declarationChecks, setDeclarationChecks] = useState([false, false, false, false]);
   const [signatureData, setSignatureData] = useState("");
 
@@ -52,9 +52,9 @@ export default function Application() {
     if (!form.fullName || !form.mobile || !form.address) {
       return Alert.alert("Required", "Full name, mobile number and address are required.");
     }
-    const amount = Number(cooperationAmount);
-    if (!cooperationAmount.trim() || !Number.isFinite(amount) || amount < 0) {
-      return Alert.alert("Invalid amount", "Enter a valid cooperation amount.");
+    const amount = Number(applicationAmount);
+    if (!applicationAmount.trim() || !Number.isFinite(amount) || amount < 0) {
+      return Alert.alert("Invalid amount", "Enter a valid application amount.");
     }
     if (!declarationChecks.every(Boolean)) {
       return Alert.alert("Declaration required", "Please check all four declaration statements before submitting.");
@@ -67,8 +67,8 @@ export default function Application() {
       setLoading(true);
       const data = new FormData();
       Object.entries(form).forEach(([key, value]) => data.append(key, String(value)));
-      data.append("membershipFee", "500");
-      data.append("cooperationAmount", String(amount));
+      data.append("membershipFee", String(amount));
+      data.append("cooperationAmount", "0");
       data.append("familyMembers", JSON.stringify(family.filter((x) => x.name.trim())));
       data.append("declarationChecks", JSON.stringify(declarationChecks));
       data.append("declarationAccepted", String(declarationChecks.every(Boolean)));
@@ -135,27 +135,33 @@ export default function Application() {
 
         <Text style={styles.section}>Membership & Payment</Text>
         <View style={styles.amountRow}>
-          <View style={styles.amountBox}><Text style={styles.amountLabel}>Membership Fee</Text><Text style={styles.amount}>₹500</Text></View>
-          <View style={styles.amountBox}><Text style={styles.amountLabel}>Cooperation</Text><Text style={styles.amount}>₹{cooperationAmount || "0"}</Text></View>
+          <View style={styles.amountBox}>
+            <Text style={styles.amountLabel}>Membership Fee</Text>
+            <Text style={styles.amount}>₹500</Text>
+          </View>
+          <View style={styles.amountBox}>
+            <Text style={styles.amountLabel}>Cooperation</Text>
+            <Text style={styles.amount}>₹200</Text>
+          </View>
         </View>
+        <Field
+          label="Amount (₹) *"
+          value={applicationAmount}
+          onChangeText={(value) => setApplicationAmount(value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1"))}
+          placeholder="Enter amount"
+          keyboardType="decimal-pad"
+        />
         <Field label="Payment Date" placeholder="DD/MM/YYYY" value={form.paymentDate} onChangeText={(v) => set("paymentDate", v)} />
         <Field label="Payment Method" placeholder="UPI / Bank Transfer / Cash / Other" value={form.paymentMethod} onChangeText={(v) => set("paymentMethod", v)} />
         <Field label="Transaction Reference Number" value={form.transactionReference} onChangeText={(v) => set("transactionReference", v)} />
         <PrimaryButton title={receipt ? "Receipt Selected ✓" : "Attach Payment Receipt (Optional)"} secondary onPress={chooseReceipt} />
 
         <Text style={styles.section}>Declaration</Text>
-        <Field
-          label="सहयोग राशि / Amount (₹) *"
-          value={cooperationAmount}
-          onChangeText={(value) => setCooperationAmount(value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1"))}
-          placeholder="राशि दर्ज करें"
-          keyboardType="decimal-pad"
-        />
         {[
           "मैं, उपरोक्त सभी जानकारी सत्य एवं सही होने की घोषणा करता/करती हूँ।",
           "मैं संस्था के नियमों व उद्देश्यों से सहमत हूँ और सदस्यता हेतु आवेदन करता/करती हूँ।",
           "मुझे ज्ञात है कि यह सदस्यता स्वैच्छिक है तथा संस्था द्वारा निर्धारित नियमों का पालन करना होगा।",
-          `आवश्यकता होने पर ₹${cooperationAmount || "___"} सहयोग राशि न देने की स्थिति में मेरी सदस्यता स्वतः निरस्त मानी जाएगी।`
+          `आवश्यकता होने पर ₹${applicationAmount || "___"} राशि न देने की स्थिति में मेरी सदस्यता स्वतः निरस्त मानी जाएगी।`
         ].map((statement, index) => {
           const checked = declarationChecks[index];
           return (

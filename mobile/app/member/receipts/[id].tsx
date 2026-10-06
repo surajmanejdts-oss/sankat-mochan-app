@@ -128,7 +128,9 @@ export default function ReceiptDetails() {
       <Text style={styles.receiptNumber}>{receipt.receiptNumber}</Text>
 
       <View style={styles.amountPanel}>
-        <Text style={styles.amountLabel}>Amount received</Text>
+        <Text style={styles.amountLabel}>
+          {receipt.type === "application" ? "Membership Fee" : "Cooperation Fee"}
+        </Text>
         <Text style={styles.amount}>
           {formatMoney(receipt.amount, receipt.currency)}
         </Text>

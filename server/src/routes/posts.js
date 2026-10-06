@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const Post = require("../models/Post");
 const User = require("../models/User");
-const { requireAuth, requireMember } = require("../middleware/auth");
+const { requireAuth, requireMember, requireAdmin } = require("../middleware/auth");
 const { notifyAdmins, notifyMember, notifyVerifiedMembers } = require("../utils/notifications");
 
 const router = express.Router();
@@ -42,6 +42,38 @@ router.get("/", requireAuth, requireMember, async (req, res) => {
     .lean();
 
   res.json({ posts });
+});
+
+// Admin posts are published directly to the verified members' feed.
+router.post("/admin", requireAuth, requireAdmin, upload.single("image"), async (req, res) => {
+  try {
+    const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
+    if (!text && !req.file) {
+      return res.status(400).json({ message: "Add some text or an image." });
+    }
+
+    const base = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const post = await Post.create({
+      authorName: "Admin",
+      text,
+      imageUrl: req.file ? `${base}/uploads/${req.file.filename}` : "",
+      status: "approved",
+      reviewedAt: new Date(),
+      reviewedBy: req.auth.username || "Admin"
+    });
+
+    await notifyVerifiedMembers({
+      type: "new_post",
+      title: "New community post",
+      body: "Admin shared a new post in the community.",
+      data: { postId: post._id.toString() }
+    });
+
+    res.status(201).json({ message: "Post published to the community feed.", post });
+  } catch (error) {
+    console.error("Admin post creation failed:", error);
+    res.status(500).json({ message: "Unable to publish post." });
+  }
 });
 
 // A verified member submits a post. It stays pending until an admin approves it.

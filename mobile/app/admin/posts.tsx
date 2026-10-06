@@ -1,5 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   Alert,
   Image,
@@ -7,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -21,6 +23,7 @@ type Post = {
   imageUrl?: string;
   status?: "pending" | "approved" | "rejected";
   createdAt?: string;
+  authorName?: string;
   author?: {
     _id: string;
     name?: string;
@@ -34,6 +37,9 @@ export default function AdminPosts() {
   const { token } = useAuth();
 
   const [posts, setPosts] = useState<Post[]>([]);
+  const [postText, setPostText] = useState("");
+  const [postImage, setPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -143,6 +149,50 @@ export default function AdminPosts() {
     }
   }
 
+  async function pickPostImage() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.8
+    });
+    if (!result.canceled) setPostImage(result.assets[0]);
+  }
+
+  async function publishPost() {
+    if (!postText.trim() && !postImage) {
+      Alert.alert("Empty post", "Add some text or an image.");
+      return;
+    }
+
+    try {
+      setPublishing(true);
+      const body = new FormData();
+      body.append("text", postText.trim());
+      if (postImage) {
+        const extension = postImage.uri.split(".").pop() || "jpg";
+        body.append("image", {
+          uri: postImage.uri,
+          name: `admin-post.${extension}`,
+          type: postImage.mimeType || "image/jpeg"
+        } as any);
+      }
+
+      const result = await apiFetch<{ message: string }>(
+        "/posts/admin",
+        { method: "POST", body },
+        token || undefined
+      );
+      setPostText("");
+      setPostImage(null);
+      await load();
+      Alert.alert("Post published", result.message);
+    } catch (error: any) {
+      Alert.alert("Publish failed", error?.message || "Unable to publish the post.");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   function getStatus(post: Post): PostStatus {
     if (
       post.status === "approved" ||
@@ -173,9 +223,46 @@ export default function AdminPosts() {
       <Text style={styles.title}>All Community Posts</Text>
 
       <Text style={styles.subtitle}>
-        All submitted member posts are shown here. Review pending posts,
-        and manage approved or rejected posts.
+        Publish community updates as admin, review pending member posts,
+        and manage published or rejected posts.
       </Text>
+
+      <View style={styles.composer}>
+        <Text style={styles.composerTitle}>Publish as Admin</Text>
+        <TextInput
+          value={postText}
+          onChangeText={setPostText}
+          multiline
+          placeholder="Write an announcement or community update..."
+          placeholderTextColor="#7B8790"
+          style={styles.composerInput}
+          maxLength={2000}
+          textAlignVertical="top"
+        />
+        {postImage ? (
+          <Image source={{ uri: postImage.uri }} style={styles.composerImage} resizeMode="cover" />
+        ) : null}
+        <PrimaryButton
+          title={postImage ? "Change Image" : "Add Image (Optional)"}
+          secondary
+          onPress={pickPostImage}
+          disabled={publishing}
+        />
+        {postImage ? (
+          <PrimaryButton
+            title="Remove Image"
+            danger
+            onPress={() => setPostImage(null)}
+            disabled={publishing}
+          />
+        ) : null}
+        <PrimaryButton
+          title={publishing ? "Publishing..." : "Publish Post"}
+          onPress={publishPost}
+          disabled={publishing}
+          loading={publishing}
+        />
+      </View>
 
       {!hasLoaded ? (
         <DataRequestStatus loading={loading} error={loadError} onRetry={load} message="Loading community posts..." />
@@ -199,11 +286,11 @@ export default function AdminPosts() {
             <View style={styles.header}>
               <View style={styles.authorContainer}>
                 <Text style={styles.author}>
-                  {post.author?.name || "Member"}
+                  {post.author?.name || post.authorName || "Member"}
                 </Text>
 
                 <Text style={styles.username}>
-                  @{post.author?.username || "unknown"}
+                  @{post.author?.username || (post.authorName === "Admin" ? "admin" : "unknown")}
                 </Text>
               </View>
 
@@ -300,6 +387,38 @@ const styles = StyleSheet.create({
     marginTop: 3,
     marginBottom: 15,
     lineHeight: 20,
+  },
+
+  composer: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 15,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#D8E2E8",
+    gap: 10
+  },
+
+  composerTitle: {
+    color: "#173C5A",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+
+  composerInput: {
+    minHeight: 110,
+    backgroundColor: "#F8FAFB",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#C9D4DB",
+    fontSize: 15
+  },
+
+  composerImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12
   },
 
   card: {

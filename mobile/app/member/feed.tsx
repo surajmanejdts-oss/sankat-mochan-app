@@ -11,6 +11,7 @@ type Post = {
   text: string;
   imageUrl: string;
   createdAt: string;
+  authorName?: string;
   author?: { name: string; username: string };
 };
 
@@ -71,7 +72,10 @@ export default function Feed() {
 
       {hasLoaded && posts.map((post) => (
         <View style={styles.post} key={post._id}>
-          <Text style={styles.author}>{post.author?.name || "Member"} <Text style={styles.handle}>@{post.author?.username}</Text></Text>
+          <Text style={styles.author}>
+            {post.author?.name || post.authorName || "Member"}
+            {post.author?.username ? <Text style={styles.handle}> @{post.author.username}</Text> : null}
+          </Text>
           <Text style={styles.date}>{new Date(post.createdAt).toLocaleString()}</Text>
           {post.text ? <Text style={styles.text}>{post.text}</Text> : null}
           {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.image} /> : null}

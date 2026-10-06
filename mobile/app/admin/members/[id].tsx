@@ -34,7 +34,7 @@ function emptyApplicationForm(): ApplicationForm {
   return {
     fullName: "", fatherOrHusbandName: "", dob: "", mobile: "", whatsapp: "",
     email: "", address: "", city: "", district: "", state: "", pincode: "",
-    occupation: "", familyMembers: [], membershipFee: "500", cooperationAmount: "200",
+    occupation: "", familyMembers: [], membershipFee: "0", cooperationAmount: "0",
     paymentDate: "", paymentMethod: "", transactionReference: ""
   };
 }
@@ -87,8 +87,8 @@ export default function MemberDetail() {
             mobile: family.mobile || "",
             email: family.email || ""
           })),
-          membershipFee: String(application?.membershipFee ?? 500),
-          cooperationAmount: String(application?.cooperationAmount ?? 200),
+          membershipFee: String(application?.membershipFee || application?.cooperationAmount || 0),
+          cooperationAmount: "0",
           paymentDate: application?.paymentDate || "",
           paymentMethod: application?.paymentMethod || "",
           transactionReference: application?.transactionReference || ""
@@ -384,16 +384,14 @@ export default function MemberDetail() {
           <Section title="Payment">
             {editing ? (
               <>
-                <Field label="Membership Fee" value={form.application.membershipFee} onChangeText={(value) => updateApplication("membershipFee", value)} keyboardType="decimal-pad" />
-                <Field label="Cooperation Amount" value={form.application.cooperationAmount} onChangeText={(value) => updateApplication("cooperationAmount", value)} keyboardType="decimal-pad" />
+                <Field label="Membership Fee / Application Amount" value={form.application.membershipFee} onChangeText={(value) => updateApplication("membershipFee", value)} keyboardType="decimal-pad" />
                 <Field label="Payment Date" value={form.application.paymentDate} onChangeText={(value) => updateApplication("paymentDate", value)} />
                 <Field label="Payment Method" value={form.application.paymentMethod} onChangeText={(value) => updateApplication("paymentMethod", value)} />
                 <Field label="UPI Transaction ID" value={form.application.transactionReference} onChangeText={(value) => updateApplication("transactionReference", value)} />
               </>
             ) : (
               <>
-                <Info label="Membership Fee" value={`₹${application.membershipFee || 500}`} />
-                <Info label="Cooperation Amount" value={`₹${application.cooperationAmount || 200}`} />
+                <Info label="Membership Fee / Application Amount" value={`₹${application.membershipFee || application.cooperationAmount || 0}`} />
                 <Info label="Payment Date" value={application.paymentDate} />
                 <Info label="Payment Method" value={application.paymentMethod} />
                 <Info label="UPI Transaction ID" value={application.transactionReference} />

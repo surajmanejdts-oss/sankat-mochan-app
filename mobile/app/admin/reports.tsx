@@ -70,8 +70,9 @@ function memberAddress(member: ReportMember) {
 }
 
 function createReportHtml(members: ReportMember[], logoDataUri: string) {
-  const rows = members.map((member) => `
+  const rows = members.map((member, index) => `
     <tr>
+      <td>${index + 1}</td>
       <td>${escapeHtml(member.application?.fullName || member.name || "—")}</td>
       <td>${escapeHtml(memberNumber(member))}</td>
       <td>${escapeHtml(memberAddress(member))}</td>
@@ -92,21 +93,23 @@ function createReportHtml(members: ReportMember[], logoDataUri: string) {
           .organization { margin: 0; color: #153E60; font-size: 15pt; font-weight: bold; }
           table { width: 100%; border-collapse: collapse; table-layout: fixed; }
           th { background: #0D568B; color: white; text-align: left; }
+          th:first-child, td:first-child { text-align: center; }
           th, td { border: 1px solid #D8E2E8; padding: 8px; vertical-align: top; overflow-wrap: anywhere; }
-          th:nth-child(1) { width: 28%; }
-          th:nth-child(2) { width: 24%; }
-          th:nth-child(3) { width: 48%; }
+          th:nth-child(1) { width: 8%; }
+          th:nth-child(2) { width: 25%; }
+          th:nth-child(3) { width: 22%; }
+          th:nth-child(4) { width: 45%; }
           tr { page-break-inside: avoid; }
         </style>
       </head>
       <body>
         <header class="report-header">
-          <h1>Member Report</h1>
           <img class="logo" src="${logoDataUri}" alt="Sankat Mochan logo" />
+          <h1>Members Report</h1>
           <p class="organization">श्री संकट मोचण सेवार्थ संस्था</p>
         </header>
         <table>
-          <thead><tr><th>Name</th><th>Number</th><th>Address</th></tr></thead>
+          <thead><tr><th>Sr. No.</th><th>Name</th><th>Number</th><th>Address</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </body>

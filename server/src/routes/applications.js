@@ -53,7 +53,16 @@ router.post("/", requireAuth, requireMember, upload.single("receipt"), async (re
     const declarationAccepted =
       (body.declarationAccepted === true || body.declarationAccepted === "true") &&
       allDeclarationsAccepted;
-    const cooperationAmount = Number(body.cooperationAmount);
+    const membershipFeeInput = String(body.membershipFee || "").trim();
+    const submittedMembershipFee = Number(membershipFeeInput);
+    const legacyApplicationAmount = Number(body.cooperationAmount);
+    const membershipFee = membershipFeeInput
+      ? Number.isFinite(submittedMembershipFee)
+        ? submittedMembershipFee > 0 || !Number.isFinite(legacyApplicationAmount) || legacyApplicationAmount <= 0
+          ? submittedMembershipFee
+          : legacyApplicationAmount
+        : Number.NaN
+      : legacyApplicationAmount;
     let signatureStrokes;
     try {
       signatureStrokes = JSON.parse(body.signatureData || "[]");
@@ -79,8 +88,10 @@ router.post("/", requireAuth, requireMember, upload.single("receipt"), async (re
         message: "Full name, mobile, address, all four declarations and a valid signature are required."
       });
     }
-    if (!body.cooperationAmount || !Number.isFinite(cooperationAmount) || cooperationAmount < 0) {
-      return res.status(400).json({ message: "A valid cooperation amount is required." });
+    const hasApplicationAmount = Boolean(membershipFeeInput) ||
+      (Number.isFinite(legacyApplicationAmount) && legacyApplicationAmount > 0);
+    if (!hasApplicationAmount || !Number.isFinite(membershipFee) || membershipFee < 0) {
+      return res.status(400).json({ message: "A valid application amount is required." });
     }
 
     let familyMembers = [];
@@ -108,8 +119,8 @@ router.post("/", requireAuth, requireMember, upload.single("receipt"), async (re
       pincode: body.pincode,
       occupation: body.occupation,
       familyMembers,
-      membershipFee: Number(body.membershipFee || 500),
-      cooperationAmount,
+      membershipFee,
+      cooperationAmount: 0,
       paymentDate: body.paymentDate,
       paymentMethod: body.paymentMethod,
       transactionReference: body.transactionReference,

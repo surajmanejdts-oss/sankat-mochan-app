@@ -5,7 +5,6 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { Field } from "@/components/Field";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
-import { SignaturePad } from "@/components/SignaturePad";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 
@@ -21,7 +20,6 @@ export default function Application() {
   const [family, setFamily] = useState<Family[]>([emptyFamily()]);
   const [applicationAmount, setApplicationAmount] = useState("");
   const [declarationChecks, setDeclarationChecks] = useState([false, false, false, false]);
-  const [signatureData, setSignatureData] = useState("");
 
   const [form, setForm] = useState({
     fullName: "", fatherOrHusbandName: "", dob: "", mobile: "", whatsapp: "", email: "",
@@ -59,9 +57,6 @@ export default function Application() {
     if (!declarationChecks.every(Boolean)) {
       return Alert.alert("Declaration required", "Please check all four declaration statements before submitting.");
     }
-    if (!signatureData) {
-      return Alert.alert("Signature required", "Please sign in the signature box before submitting.");
-    }
 
     try {
       setLoading(true);
@@ -72,7 +67,6 @@ export default function Application() {
       data.append("familyMembers", JSON.stringify(family.filter((x) => x.name.trim())));
       data.append("declarationChecks", JSON.stringify(declarationChecks));
       data.append("declarationAccepted", String(declarationChecks.every(Boolean)));
-      data.append("signatureData", signatureData);
 
       if (receipt) {
         const ext = receipt.uri.split(".").pop() || "jpg";
@@ -180,12 +174,10 @@ export default function Application() {
           );
         })}
 
-        <SignaturePad value={signatureData} onChange={setSignatureData} />
-
         <PrimaryButton
           title={loading ? "Submitting..." : "Submit Application"}
           onPress={submit}
-          disabled={loading || !declarationChecks.every(Boolean) || !signatureData}
+          disabled={loading || !declarationChecks.every(Boolean)}
           loading={loading}
         />
         <PrimaryButton title="Cancel" danger onPress={() => router.back()} />

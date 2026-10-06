@@ -63,29 +63,9 @@ router.post("/", requireAuth, requireMember, upload.single("receipt"), async (re
           : legacyApplicationAmount
         : Number.NaN
       : legacyApplicationAmount;
-    let signatureStrokes;
-    try {
-      signatureStrokes = JSON.parse(body.signatureData || "[]");
-    } catch {
-      return res.status(400).json({ message: "A valid signature is required." });
-    }
-    const signaturePointCount = Array.isArray(signatureStrokes)
-      ? signatureStrokes.reduce((count, stroke) => count + (Array.isArray(stroke) ? stroke.length : 0), 0)
-      : 0;
-    const hasSignature = Array.isArray(signatureStrokes) &&
-      signatureStrokes.some((stroke) =>
-        Array.isArray(stroke) &&
-        stroke.length > 1 &&
-        stroke.every((point) =>
-          point &&
-          Number.isFinite(point.x) &&
-          Number.isFinite(point.y)
-        )
-      ) &&
-      signaturePointCount <= 12000;
-    if (!body.fullName || !body.mobile || !body.address || !declarationAccepted || !hasSignature) {
+    if (!body.fullName || !body.mobile || !body.address || !declarationAccepted) {
       return res.status(400).json({
-        message: "Full name, mobile, address, all four declarations and a valid signature are required."
+        message: "Full name, mobile, address and all four declarations are required."
       });
     }
     const hasApplicationAmount = Boolean(membershipFeeInput) ||
@@ -126,7 +106,6 @@ router.post("/", requireAuth, requireMember, upload.single("receipt"), async (re
       transactionReference: body.transactionReference,
       receiptImageUrl,
       declarationChecks,
-      signatureData: body.signatureData,
       declarationAccepted
     });
 

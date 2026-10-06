@@ -48,6 +48,20 @@ function money(amount: number) {
   return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({
     "&": "&amp;",
@@ -262,6 +276,7 @@ export default function MemberReceipts() {
   const { token, user } = useAuth();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null);
+  const [downloadInProgress, setDownloadInProgress] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -306,55 +321,69 @@ export default function MemberReceipts() {
   }
 
   async function downloadReceipt(receipt: Receipt) {
+    if (downloadInProgress) return;
+
     try {
+      setDownloadInProgress(true);
       setDownloadingReceiptId(receipt._id);
-      const logoAsset = Asset.fromModule(require("../../assets/logo.png"));
-      await logoAsset.downloadAsync();
+      const logoAsset = Asset.fromModule(require("../../assets/logo.jpeg"));
+      await withTimeout(
+        logoAsset.downloadAsync(),
+        15000,
+        "Logo download timed out. Please try again."
+      );
       if (!logoAsset.localUri) {
-        throw new Error("संस्था का लोगो लोड नहीं हो सका।");
+        throw new Error("The organization logo could not be loaded.");
       }
 
       const logoBase64 = await FileSystem.readAsStringAsync(
         logoAsset.localUri,
         { encoding: FileSystem.EncodingType.Base64 }
       );
-      const file = await Print.printToFileAsync({
-        html: createReceiptHtml(
-          receipt,
-          user?.name || "",
-          `data:image/png;base64,${logoBase64}`
-        ),
-        base64: true
-      });
+      const file = await withTimeout(
+        Print.printToFileAsync({
+          html: createReceiptHtml(
+            receipt,
+            user?.name || "",
+            `data:image/jpeg;base64,${logoBase64}`
+          ),
+          base64: true
+        }),
+        30000,
+        "PDF generation timed out. Please try again."
+      );
       if (!file.base64) {
-        throw new Error("PDF फ़ाइल तैयार नहीं हो सकी।");
+        throw new Error("The PDF file could not be generated.");
       }
-      if (!FileSystem.documentDirectory) {
-        throw new Error("डिवाइस में फ़ाइल सहेजने की सुविधा उपलब्ध नहीं है।");
-      }
+      setDownloadingReceiptId(null);
 
+      if (!FileSystem.documentDirectory) {
+        throw new Error("File storage is unavailable on this device.");
+      }
       const safeReceiptNumber = receipt.receiptNumber.replace(/[^a-zA-Z0-9_-]/g, "_");
-      const fileUri = `${FileSystem.documentDirectory}receipt-${safeReceiptNumber}.pdf`;
+      const fileUri = `${FileSystem.documentDirectory}receipt-${safeReceiptNumber}-${Date.now()}.pdf`;
       await FileSystem.writeAsStringAsync(
         fileUri,
         file.base64,
         { encoding: FileSystem.EncodingType.Base64 }
       );
 
-      if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert("PDF तैयार है", `रसीद PDF यहाँ सहेजी गई है: ${fileUri}`);
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert("PDF ready", `The receipt was saved at ${fileUri}, but sharing is unavailable on this device.`);
         return;
       }
 
       await Sharing.shareAsync(fileUri, {
         mimeType: "application/pdf",
         UTI: "com.adobe.pdf",
-        dialogTitle: "रसीद PDF डाउनलोड करें"
+        dialogTitle: "Download receipt PDF"
       });
     } catch (error: any) {
-      Alert.alert("PDF डाउनलोड विफल", error?.message || "रसीद PDF तैयार नहीं हो सकी।");
+      Alert.alert("PDF download failed", error?.message || "Unable to create the receipt PDF.");
     } finally {
       setDownloadingReceiptId(null);
+      setDownloadInProgress(false);
     }
   }
 
@@ -419,7 +448,7 @@ export default function MemberReceipts() {
                     event.stopPropagation();
                     void downloadReceipt(receipt);
                   }}
-                  disabled={downloadingReceiptId !== null}
+                  disabled={downloadInProgress}
                   accessibilityRole="button"
                   accessibilityLabel={`Download PDF for receipt ${receipt.receiptNumber}`}
                   hitSlop={8}

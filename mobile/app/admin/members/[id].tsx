@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Field } from "@/components/Field";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { DataRequestStatus } from "@/components/DataRequestStatus";
@@ -51,6 +52,8 @@ export default function MemberDetail() {
   const [saving, setSaving] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   const [form, setForm] = useState({ name: "", username: "", application: emptyApplicationForm() });
 
@@ -284,24 +287,56 @@ export default function MemberDetail() {
         {member.status === "verified" && (
           <>
             <Text style={styles.passwordResetTitle}>Reset member password</Text>
-            <Field
-              label="New password *"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="At least 6 characters"
-            />
-            <Field
-              label="Confirm password *"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="Enter the same password again"
-            />
+            <View style={styles.passwordField}>
+              <Text style={styles.passwordLabel}>New password *</Text>
+              <View style={styles.passwordInputWrap}>
+                <TextInput
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNewPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="At least 6 characters"
+                  placeholderTextColor="#8A8A8A"
+                  style={styles.passwordInput}
+                  accessibilityLabel="New password"
+                />
+                <Pressable
+                  onPress={() => setShowNewPassword((visible) => !visible)}
+                  style={styles.passwordVisibility}
+                  accessibilityRole="button"
+                  accessibilityLabel={showNewPassword ? "Hide new password" : "Show new password"}
+                  hitSlop={8}
+                >
+                  <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#526773" />
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.passwordField}>
+              <Text style={styles.passwordLabel}>Confirm password *</Text>
+              <View style={styles.passwordInputWrap}>
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="Enter the same password again"
+                  placeholderTextColor="#8A8A8A"
+                  style={styles.passwordInput}
+                  accessibilityLabel="Confirm password"
+                />
+                <Pressable
+                  onPress={() => setShowConfirmPassword((visible) => !visible)}
+                  style={styles.passwordVisibility}
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  hitSlop={8}
+                >
+                  <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#526773" />
+                </Pressable>
+              </View>
+            </View>
             <PrimaryButton
               title={resettingPassword ? "Resetting..." : "Reset Password"}
               onPress={resetMemberPassword}
@@ -451,5 +486,20 @@ const styles = StyleSheet.create({
   muted: { color: "#777" },
   receipt: { width: "100%", height: 260, borderRadius: 12, marginTop: 8 },
   declaration: { color: "#4A4A4A", lineHeight: 21 },
-  passwordResetTitle: { color: "#0D568B", fontSize: 16, fontWeight: "800", marginTop: 10, marginBottom: 10 }
+  passwordResetTitle: { color: "#0D568B", fontSize: 16, fontWeight: "800", marginTop: 10, marginBottom: 10 },
+  passwordField: { marginBottom: 12 },
+  passwordLabel: { color: "#173C5A", fontWeight: "700", marginBottom: 6 },
+  passwordInputWrap: { position: "relative", justifyContent: "center" },
+  passwordInput: {
+    borderWidth: 1,
+    borderColor: "#A9C0D0",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    paddingHorizontal: 13,
+    paddingRight: 48,
+    paddingVertical: 11,
+    fontSize: 15,
+    color: "#15212B"
+  },
+  passwordVisibility: { position: "absolute", right: 12, height: "100%", justifyContent: "center" }
 });

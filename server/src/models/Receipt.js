@@ -27,7 +27,13 @@ const receiptSchema = new mongoose.Schema(
 receiptSchema.index({ user: 1, receiptDate: -1 });
 receiptSchema.index(
   { sourceApplication: 1 },
-  { unique: true, sparse: true }
+  {
+    name: "sourceApplication_unique_objectid",
+    unique: true,
+    partialFilterExpression: {
+      sourceApplication: { $type: "objectId" }
+    }
+  }
 );
 
 module.exports = mongoose.model("Receipt", receiptSchema);
